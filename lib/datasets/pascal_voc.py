@@ -29,6 +29,7 @@ class pascal_voc(imdb):
         self._devkit_path = self._get_default_path() if devkit_path is None \
                             else devkit_path
         self._data_path = os.path.join(self._devkit_path, 'VOC' + self._year)
+        # data/VOCdevkit2007/VOC2007
         self._classes = ('__background__', # always index 0
                          'aeroplane', 'bicycle', 'bird', 'boat',
                          'bottle', 'bus', 'car', 'cat', 'chair',
@@ -38,6 +39,7 @@ class pascal_voc(imdb):
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
         self._image_ext = '.jpg'
         self._image_index = self._load_image_set_index()
+        #['000005', '000007', '000009', '000012', '000016',......]
         # Default to roidb handler
         #self._roidb_handler = self.selective_search_roidb
         self._roidb_handler = self.gt_roidb
@@ -108,6 +110,7 @@ class pascal_voc(imdb):
 
         gt_roidb = [self._load_pascal_annotation(index)
                     for index in self.image_index]
+        #self.image_index: ['000005', '000007', '000009', '000012', '000016',......]
         with open(cache_file, 'wb') as fid:
             cPickle.dump(gt_roidb, fid, cPickle.HIGHEST_PROTOCOL)
         print 'wrote gt roidb to {}'.format(cache_file)
@@ -184,8 +187,11 @@ class pascal_voc(imdb):
         """
         Load image and bounding boxes info from XML file in the PASCAL VOC
         format.
+        index = '000005'(for example)
         """
         filename = os.path.join(self._data_path, 'Annotations', index + '.xml')
+        #self._data_path: data/VOCdevkit2007/VOC2007
+        #data/VOCdevkit2007/VOC2007/Annotations/??.xml
         tree = ET.parse(filename)
         objs = tree.findall('object')
         if not self.config['use_diff']:
@@ -199,6 +205,7 @@ class pascal_voc(imdb):
         num_objs = len(objs)
 
         boxes = np.zeros((num_objs, 4), dtype=np.uint16)
+        #the number of objects in picture * the number of coordinates(4)
         gt_classes = np.zeros((num_objs), dtype=np.int32)
         overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
         # "Seg" area for pascal is just the box area
@@ -206,6 +213,7 @@ class pascal_voc(imdb):
 
         # Load object bounding boxes into a data frame.
         for ix, obj in enumerate(objs):
+            #ix = 0,1,2......
             bbox = obj.find('bndbox')
             # Make pixel indexes 0-based
             x1 = float(bbox.find('xmin').text) - 1
@@ -213,10 +221,12 @@ class pascal_voc(imdb):
             x2 = float(bbox.find('xmax').text) - 1
             y2 = float(bbox.find('ymax').text) - 1
             cls = self._class_to_ind[obj.find('name').text.lower().strip()]
+            #the number(1,2,3...) corresponding to the name od obj
             boxes[ix, :] = [x1, y1, x2, y2]
             gt_classes[ix] = cls
             overlaps[ix, cls] = 1.0
             seg_areas[ix] = (x2 - x1 + 1) * (y2 - y1 + 1)
+            # area of boxes
 
         overlaps = scipy.sparse.csr_matrix(overlaps)
 
@@ -225,7 +235,24 @@ class pascal_voc(imdb):
                 'gt_overlaps' : overlaps,
                 'flipped' : False,
                 'seg_areas' : seg_areas}
-
+    """
+    the result(an example)(2 objects in picture:person,cat):
+    {
+    'boxes':
+    [[23,34,54,32],
+     [432,45,6,43]]
+    'gt_classes': 
+    [16,8] #the number corresponding to person and cat
+    'gt_overlaps':
+    (0 15)  1
+    (0,7)   1
+    'flipped':
+    False
+    seg_areas:
+    [432,53]
+    }
+    """
+    
     def _get_comp_id(self):
         comp_id = (self._comp_id + '_' + self._salt if self.config['use_salt']
             else self._comp_id)
