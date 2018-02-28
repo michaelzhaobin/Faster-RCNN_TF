@@ -138,7 +138,7 @@ def im_detect(sess, net, im, boxes=None):
         boxes (ndarray): R x 4 array of object proposals
     Returns:
         scores (ndarray): R x K array of object class scores (K includes
-            background as object category 0)
+            background as object category 0)(K: number of classes including background: 21)
         boxes (ndarray): R x (4*K) array of predicted bounding boxes
     """
 
@@ -270,14 +270,21 @@ def apply_nms(all_boxes, thresh):
 
 
 def test_net(sess, net, imdb, weights_filename , max_per_image=300, thresh=0.05, vis=False):
-    """Test a Fast R-CNN network on an image database."""
+    """Test a Fast R-CNN network on an image database.
+    """
     num_images = len(imdb.image_index)
+    # imdb.image_index: ['000005', '000007', '000009', '000012', '000016',......]
     # all detections are collected into:
     #    all_boxes[cls][image] = N x 5 array of detections in
     #    (x1, y1, x2, y2, score)
     all_boxes = [[[] for _ in xrange(num_images)]
                  for _ in xrange(imdb.num_classes)]
-
+    # if num_images = 10 && imdb.num_classes = 5:
+    #[[[], [], [], [], [], [], [], [], [], []], 
+    # [[], [], [], [], [], [], [], [], [], []], 
+    # [[], [], [], [], [], [], [], [], [], []], 
+    # [[], [], [], [], [], [], [], [], [], []], 
+    # [[], [], [], [], [], [], [], [], [], []]]
     output_dir = get_output_dir(imdb, weights_filename)
     # timers
     _t = {'im_detect' : Timer(), 'misc' : Timer()}
@@ -296,9 +303,11 @@ def test_net(sess, net, imdb, weights_filename , max_per_image=300, thresh=0.05,
             # that have the gt_classes field set to 0, which means there's no
             # ground truth.
             box_proposals = roidb[i]['boxes'][roidb[i]['gt_classes'] == 0]
-
+        
+        # return absolute path od a image.
         im = cv2.imread(imdb.image_path_at(i))
         _t['im_detect'].tic()
+        #scores: R*21 boxes: R*21*4
         scores, boxes = im_detect(sess, net, im, box_proposals)
         _t['im_detect'].toc()
 
@@ -311,15 +320,30 @@ def test_net(sess, net, imdb, weights_filename , max_per_image=300, thresh=0.05,
         # skip j = 0, because it's the background class
         for j in xrange(1, imdb.num_classes):
             inds = np.where(scores[:, j] > thresh)[0]
+            """for emample:
+            if scores = [[1,2,3,4],[2,3,4,5],[3,4,5,6]]
+            socres[:, 1] = array([2, 3, 4])
+            scores[:, 1] > 2 : array([False,  True,  True])
+            np.where(scores[:, 1] > 2) : (array([1, 2]),)
+            np.where(scores[:, 1] > 2)[0] : array([1, 2])
+            """
             cls_scores = scores[inds, j]
+            # array([3, 4])
             cls_boxes = boxes[inds, j*4:(j+1)*4]
+            # the coordinates of this two corresponding j class
+            # 2*4 for example: [[0.5, 0.6, 0.5, 0.8],[0.3, 0.5, 0.6, 0.9]]
             cls_dets = np.hstack((cls_boxes, cls_scores[:, np.newaxis])) \
                 .astype(np.float32, copy=False)
+            #array([[0.5, 0.6, 0.5, 0.8, 3. ],
+            #       [0.3, 0.5, 0.6, 0.9, 4. ]], dtype=float32)
+            #np.newaxis: add a new dimension
             keep = nms(cls_dets, cfg.TEST.NMS)
+            #cfg.Test.NMS: 0.3 (Overlap threshold used for non-maximum suppression (suppress boxes with IoU >= this threshold))
             cls_dets = cls_dets[keep, :]
             if vis:
                 vis_detections(image, imdb.classes[j], cls_dets)
             all_boxes[j][i] = cls_dets
+            #the als_dets(including)
         if vis:
            plt.show()
         # Limit to max_per_image detections *over all classes*
