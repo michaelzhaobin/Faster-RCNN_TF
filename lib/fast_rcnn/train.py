@@ -215,8 +215,28 @@ def get_training_roidb(imdb):
     print 'done'
 
     return imdb.roidb
-
-
+"""
+imdb.roidb[i](an image example i)(2 objects in picture:person,cat):
+    {
+    'boxes':
+    [[23,34,54,32],
+     [432,45,6,43]]
+    'gt_classes': 
+    [16,8] #the number corresponding to person and cat
+    'gt_overlaps':
+    (0 15)  1
+    (1,7)   1
+    'flipped':
+    False
+    seg_areas:
+    [432,53]
+    }
+    'image':image_path
+    'widthr': width of a image
+    'height': heigth of a image
+    'max_classes': [15, 7]
+    'max_overlaps': [1,1]
+"""
 def get_data_layer(roidb, num_classes):
     """return a data layer."""
     if cfg.TRAIN.HAS_RPN:
