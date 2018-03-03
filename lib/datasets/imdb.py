@@ -99,6 +99,7 @@ class imdb(object):
 
     def _get_widths(self):
       return [PIL.Image.open(self.image_path_at(i)).size[0]
+              # return the length of a image
               for i in xrange(self.num_images)]
 
     def append_flipped_images(self):
@@ -106,10 +107,13 @@ class imdb(object):
         widths = self._get_widths()
         for i in xrange(num_images):
             boxes = self.roidb[i]['boxes'].copy()
+            #self.roidb: self._roidb_handler
+            #self.roidb[i]['boxes']: num_objects_in_a_image * 4
             oldx1 = boxes[:, 0].copy()
             oldx2 = boxes[:, 2].copy()
             boxes[:, 0] = widths[i] - oldx2 - 1
             boxes[:, 2] = widths[i] - oldx1 - 1
+            # the coordinates of box after the image has been flipped
             assert (boxes[:, 2] >= boxes[:, 0]).all()
             entry = {'boxes' : boxes,
                      'gt_overlaps' : self.roidb[i]['gt_overlaps'],
