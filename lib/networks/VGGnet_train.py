@@ -32,27 +32,47 @@ class VGGnet_train(Network):
 
     def setup(self):
         (self.feed('data')
+         #input: 224*224*3
              .conv(3, 3, 64, 1, 1, name='conv1_1', trainable=False)
+         #output: 224*224*64
              .conv(3, 3, 64, 1, 1, name='conv1_2', trainable=False)
+         #output: 224*224*64
              .max_pool(2, 2, 2, 2, padding='VALID', name='pool1')
+         #output: 112*112*64
              .conv(3, 3, 128, 1, 1, name='conv2_1', trainable=False)
+         #output: 112*112*128
              .conv(3, 3, 128, 1, 1, name='conv2_2', trainable=False)
+         #output: 112*112*128
              .max_pool(2, 2, 2, 2, padding='VALID', name='pool2')
+         #output: 56*56*128
              .conv(3, 3, 256, 1, 1, name='conv3_1')
+         #output: 56*56*256
              .conv(3, 3, 256, 1, 1, name='conv3_2')
+         #output: 56*56*256
              .conv(3, 3, 256, 1, 1, name='conv3_3')
+         #output: 56*56*256
              .max_pool(2, 2, 2, 2, padding='VALID', name='pool3')
+         #output: 28*28*256
              .conv(3, 3, 512, 1, 1, name='conv4_1')
+         #output: 28*28*512
              .conv(3, 3, 512, 1, 1, name='conv4_2')
+         #output: 28*28*512
              .conv(3, 3, 512, 1, 1, name='conv4_3')
+         #output: 28*28*512
              .max_pool(2, 2, 2, 2, padding='VALID', name='pool4')
+         #output: 14*14*512
              .conv(3, 3, 512, 1, 1, name='conv5_1')
+         #output: 14*14*512
              .conv(3, 3, 512, 1, 1, name='conv5_2')
+         #output: 14*14*512
              .conv(3, 3, 512, 1, 1, name='conv5_3'))
+        #output: 14*14*512
         #========= RPN ============
         (self.feed('conv5_3')
              .conv(3,3,512,1,1,name='rpn_conv/3x3')
+         #output: 14*14*512
              .conv(1,1,len(anchor_scales)*3*2 ,1 , 1, padding='VALID', relu = False, name='rpn_cls_score'))
+        #output: 14*14*18 (9 anchors * 2 object scores)
 
         (self.feed('rpn_cls_score','gt_boxes','im_info','data')
              .anchor_target_layer(_feat_stride, anchor_scales, name = 'rpn-data' ))
