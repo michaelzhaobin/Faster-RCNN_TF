@@ -16,17 +16,29 @@ from utils.blob import prep_im_for_blob, im_list_to_blob
 def get_minibatch(roidb, num_classes):
     """Given a roidb, construct a minibatch sampled from it."""
     num_images = len(roidb)
+    # 2
     # Sample random scales to use for each image in this batch
     random_scale_inds = npr.randint(0, high=len(cfg.TRAIN.SCALES),
                                     size=num_images)
+    # cfg.TRAIN.SCALES: (600,),len=1
+    """官方文档中给出的用法是：numpy.random.randint(low,high=None,size=None,dtype)
+    生成在半开半闭区间[low,high)上离散均匀分布的整数值;若high=None，则取值区间变为[0,low)
+    random_scale_inds = [0, 0]
+    """
     assert(cfg.TRAIN.BATCH_SIZE % num_images == 0), \
         'num_images ({}) must divide BATCH_SIZE ({})'. \
         format(num_images, cfg.TRAIN.BATCH_SIZE)
     rois_per_image = cfg.TRAIN.BATCH_SIZE / num_images
+    #cfg.TRAIN.BATCH_SIZE: 128(number of ROLs)
+    #return 64
     fg_rois_per_image = np.round(cfg.TRAIN.FG_FRACTION * rois_per_image)
-
+    #FG_FRACTON: 0.25(Fraction of minibatch that is labeled foreground)
+    # return 0.25*64 = 16 
+    
     # Get the input image blob, formatted for caffe
     im_blob, im_scales = _get_image_blob(roidb, random_scale_inds)
+    #im_blobs:[2,maxL,maxH,3]
+    #im_scales: [600/.., 600/..]
 
     blobs = {'data': im_blob}
 
@@ -138,8 +150,13 @@ def _get_image_blob(roidb, scale_inds):
         if roidb[i]['flipped']:
             im = im[:, ::-1, :]
         target_size = cfg.TRAIN.SCALES[scale_inds[i]]
+        # always 600
         im, im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,
                                         cfg.TRAIN.MAX_SIZE)
+        # prep_im_for_blob(im, [[[102.9801, 115.9465, 122.7717]]], 600, 1000)
+        # im_scale = 600 / float(im_size_min)
+        # im = cv2.resize(im, None, None, fx=im_scale, fy=im_scale,
+        # interpolation=cv2.INTER_LINEAR)
         im_scales.append(im_scale)
         processed_ims.append(im)
 
@@ -147,6 +164,8 @@ def _get_image_blob(roidb, scale_inds):
     blob = im_list_to_blob(processed_ims)
 
     return blob, im_scales
+    #blobs:[2,maxL,maxH,3]
+    #im_scales: [600/.., 600/..]
 
 def _project_im_rois(im_rois, im_scale_factor):
     """Project image RoIs into the rescaled training image."""
