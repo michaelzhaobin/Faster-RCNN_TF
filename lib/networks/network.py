@@ -46,6 +46,8 @@ class Network(object):
             saver.restore(session, data_path)
         else:
             data_dict = np.load(data_path).item()
+            #data_dict.keys: ['conv5_1', 'fc6', 'conv5_3', 'fc7', 'fc8', 'conv5_2', 
+            #'conv4_1', 'conv4_2', 'conv4_3', 'conv3_3', 'conv3_2', 'conv3_1', 'conv1_1', 'conv1_2', 'conv2_2', 'conv2_1']
             for key in data_dict:
                 with tf.variable_scope(key, reuse=True):
                     for subkey in data_dict[key]:
