@@ -38,7 +38,7 @@ def get_minibatch(roidb, num_classes):
     # Get the input image blob, formatted for caffe
     im_blob, im_scales = _get_image_blob(roidb, random_scale_inds)
     #im_blobs:[2,maxL,maxH,3]
-    #im_scales: [600/.., 600/..]
+    #im_scales: [600/min_scale, 600/..], the multifying facter
 
     blobs = {'data': im_blob}
 
@@ -47,13 +47,21 @@ def get_minibatch(roidb, num_classes):
         assert len(roidb) == 1, "Single batch only"
         # gt boxes: (x1, y1, x2, y2, cls)
         gt_inds = np.where(roidb[0]['gt_classes'] != 0)[0]
+        #'gt_classes: [16, 8]'
+        #[0, 1]
         gt_boxes = np.empty((len(gt_inds), 5), dtype=np.float32)
         gt_boxes[:, 0:4] = roidb[0]['boxes'][gt_inds, :] * im_scales[0]
         gt_boxes[:, 4] = roidb[0]['gt_classes'][gt_inds]
         blobs['gt_boxes'] = gt_boxes
+        """
+        [[11,22,33,44,0]
+        [22,33,44,55,2]
+        ]boxes +classes
+        """
         blobs['im_info'] = np.array(
             [[im_blob.shape[1], im_blob.shape[2], im_scales[0]]],
             dtype=np.float32)
+        #[[max_length, max_width, im_scale]]
     else: # not using RPN
         # Now, build the region of interest and label blobs
         rois_blob = np.zeros((0, 5), dtype=np.float32)
@@ -165,7 +173,7 @@ def _get_image_blob(roidb, scale_inds):
 
     return blob, im_scales
     #blobs:[2,maxL,maxH,3]
-    #im_scales: [600/.., 600/..]
+    #im_scales: [600/max_height, 600/..]
 
 def _project_im_rois(im_rois, im_scale_factor):
     """Project image RoIs into the rescaled training image."""
