@@ -80,6 +80,8 @@ class SolverWrapper(object):
                 sess.run(net.bbox_bias_assign, feed_dict={net.bbox_biases: orig_1})
 
     def _modified_smooth_l1(self, sigma, bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights):
+        #rpn_smooth_l1 = self._modified_smooth_l1(3.0, rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights, 
+        #rpn_bbox_outside_weights)
         """
             ResultLoss = outside_weights * SmoothL1(inside_weights * (bbox_pred - bbox_targets))
             SmoothL1(x) = 0.5 * (sigma * x)^2,    if |x| < 1 / sigma^2
@@ -104,14 +106,23 @@ class SolverWrapper(object):
         """Network training loop."""
 
         data_layer = get_data_layer(self.roidb, self.imdb.num_classes)
+        #RoIDataLayer(roidb, num_classes)
 
         # RPN
         # classification loss
         rpn_cls_score = tf.reshape(self.net.get_output('rpn_cls_score_reshape'),[-1,2])
+        # return dect(inputs)['rpn_cls_score_reshape']
         rpn_label = tf.reshape(self.net.get_output('rpn-data')[0],[-1])
         rpn_cls_score = tf.reshape(tf.gather(rpn_cls_score,tf.where(tf.not_equal(rpn_label,-1))),[-1,2])
+        #tf.not_equal: 返回逐个元素的布尔值; tf.where: 找出tensor里所有True值的index; 
+        # tf.gather(params, indices, name = None): 根据indices索引,从params中取对应索引的值,然后返回
         rpn_label = tf.reshape(tf.gather(rpn_label,tf.where(tf.not_equal(rpn_label,-1))),[-1])
         rpn_cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=rpn_cls_score, labels=rpn_label))
+        """
+        第一个参数logits：就是神经网络最后一层的输出，如果有batch的话，它的大小就是[batchsize，num_classes]，单样本的话，大小就是num_classes
+        第二个参数labels：实际的标签，大小同上
+        then: mean_value.
+        """
 
         # bounding box regression L1 loss
         rpn_bbox_pred = self.net.get_output('rpn_bbox_pred')
@@ -159,14 +170,26 @@ class SolverWrapper(object):
         for iter in range(max_iters):
             # get one batch
             blobs = data_layer.forward()
+            """
+            blobs['data']: [1,maxL,maxH,3]
+            blobs['gt_boxes']:
+                 [[11,22,33,44,0]
+                  [22,33,44,55,2]
+                                 ]boxes +classes
+            blobs['im_info']
+            [[max_length, max_width, im_scale]]
+            im_scale: haw much tha original image has been multiplied
+            """
 
             # Make one SGD update
             feed_dict={self.net.data: blobs['data'], self.net.im_info: blobs['im_info'], self.net.keep_prob: 0.5, \
                            self.net.gt_boxes: blobs['gt_boxes']}
+            #self.net.data: shape=[None, None, None, 3]
 
             run_options = None
             run_metadata = None
             if cfg.TRAIN.DEBUG_TIMELINE:
+                #false
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
 
@@ -180,6 +203,7 @@ class SolverWrapper(object):
             timer.toc()
 
             if cfg.TRAIN.DEBUG_TIMELINE:
+                #false
                 trace = timeline.Timeline(step_stats=run_metadata.step_stats)
                 trace_file = open(str(long(time.time() * 1000)) + '-train-timeline.ctf.json', 'w')
                 trace_file.write(trace.generate_chrome_trace_format(show_memory=False))
@@ -240,7 +264,9 @@ imdb.roidb[i](an image example i)(2 objects in picture:person,cat):
 def get_data_layer(roidb, num_classes):
     """return a data layer."""
     if cfg.TRAIN.HAS_RPN:
+        #true
         if cfg.IS_MULTISCALE:
+            #false
             layer = GtDataLayer(roidb)
         else:
             layer = RoIDataLayer(roidb, num_classes)
