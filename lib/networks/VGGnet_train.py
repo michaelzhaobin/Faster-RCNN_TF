@@ -6,6 +6,7 @@ from networks.network import Network
 
 n_classes = 21
 _feat_stride = [16,]
+#14*16 = 224
 anchor_scales = [8, 16, 32]
 
 class VGGnet_train(Network):
@@ -72,8 +73,10 @@ class VGGnet_train(Network):
              .conv(3,3,512,1,1,name='rpn_conv/3x3')
          #output: 14*14*512
              .conv(1,1,len(anchor_scales)*3*2 ,1 , 1, padding='VALID', relu = False, name='rpn_cls_score'))
-        #output: 14*14*18 (9 anchors * 2 object scores)
-
+        #output: 14*14*18 (9 anchors * 2 object scores) [1,14,14,18]
+        
+        # 'rpn_cls_score':[1,14,14,18]; 'gt_boxes': [[11,22,33,44,0],[22,33,44,55,2]]boxes +classes; 
+        # 'im_info': [[max_length, max_width, im_scale]]; ['data']: [1,maxL,maxH,3]
         (self.feed('rpn_cls_score','gt_boxes','im_info','data')
              .anchor_target_layer(_feat_stride, anchor_scales, name = 'rpn-data' ))
 
@@ -85,10 +88,12 @@ class VGGnet_train(Network):
         #========= RoI Proposal ============
         (self.feed('rpn_cls_score')
              .reshape_layer(2,name = 'rpn_cls_score_reshape')
+         # output: [1, 126(9*14),14,2]
              .softmax(name='rpn_cls_prob'))
 
         (self.feed('rpn_cls_prob')
              .reshape_layer(len(anchor_scales)*3*2,name = 'rpn_cls_prob_reshape'))
+       
 
         (self.feed('rpn_cls_prob_reshape','rpn_bbox_pred','im_info')
              .proposal_layer(_feat_stride, anchor_scales, 'TRAIN',name = 'rpn_rois'))
