@@ -97,6 +97,7 @@ class Network(object):
     def conv(self, input, k_h, k_w, c_o, s_h, s_w, name, relu=True, padding=DEFAULT_PADDING, group=1, trainable=True):
         self.validate_padding(padding)
         c_i = input.get_shape()[-1]
+        # input is placeholder defined by tf: [None, None, None, 3]; c_i = 3
         assert c_i%group==0
         assert c_o%group==0
         convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
@@ -109,6 +110,8 @@ class Network(object):
 
             if group==1:
                 conv = convolve(input, kernel)
+                # conv = tf.nn.conv2d(input, tf.get_variable('weights', [k_h, k_w, c_i/group, c_o], initializer = 
+                # tf.truncated_normal_initializer(0.0, stddev=0.01), trainable = True), [1, s_h, s_w, 1], padding=padding)
             else:
                 input_groups = tf.split(3, group, input)
                 kernel_groups = tf.split(3, group, kernel)
@@ -165,6 +168,9 @@ class Network(object):
 
 
     @layer
+    # input: [1,14,14,18]('rpn_cls_score'); [[11,22,33,44,0],[22,33,44,55,2]]boxes +classes('gt_boxes'); 
+    #        [[max_length, max_width, im_scale]]('im_info'); [1,maxL,maxH,3]('data')
+    # _feat_stride = [16,]; anchor_scales = [8, 16, 32]
     def anchor_target_layer(self, input, _feat_stride, anchor_scales, name):
         if isinstance(input[0], tuple):
             input[0] = input[0][0]
@@ -202,10 +208,13 @@ class Network(object):
 
     @layer
     def reshape_layer(self, input, d,name):
+        #input: [1,14,14,18]
         input_shape = tf.shape(input)
         if name == 'rpn_cls_prob_reshape':
              return tf.transpose(tf.reshape(tf.transpose(input,[0,3,1,2]),[input_shape[0],
                     int(d),tf.cast(tf.cast(input_shape[1],tf.float32)/tf.cast(d,tf.float32)*tf.cast(input_shape[3],tf.float32),tf.int32),input_shape[2]]),[0,2,3,1],name=name)
+        # tf.transpose(tf.reshape(tf.transpose(input,[0,3,1,2]),[1,2,14/2*18(126),14]),[0,2,3,1])
+        # output: [1, 126(9*14),14,2]
         else:
              return tf.transpose(tf.reshape(tf.transpose(input,[0,3,1,2]),[input_shape[0],
                     int(d),tf.cast(tf.cast(input_shape[1],tf.float32)*(tf.cast(input_shape[3],tf.float32)/tf.cast(d,tf.float32)),tf.int32),input_shape[2]]),[0,2,3,1],name=name)
@@ -226,6 +235,7 @@ class Network(object):
                                                   beta=beta,
                                                   bias=bias,
                                                   name=name)
+    
 
     @layer
     def concat(self, inputs, axis, name):
