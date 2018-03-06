@@ -112,6 +112,8 @@ class SolverWrapper(object):
         # classification loss
         rpn_cls_score = tf.reshape(self.net.get_output('rpn_cls_score_reshape'),[-1,2])
         # return dect(inputs)['rpn_cls_score_reshape']
+        # rpn_cls_score_reshape: [1, 126(9*14),14,2]; output: [1764(9*14*14), 2]
+        # 9: num of anchors
         rpn_label = tf.reshape(self.net.get_output('rpn-data')[0],[-1])
         rpn_cls_score = tf.reshape(tf.gather(rpn_cls_score,tf.where(tf.not_equal(rpn_label,-1))),[-1,2])
         #tf.not_equal: 返回逐个元素的布尔值; tf.where: 找出tensor里所有True值的index; 
