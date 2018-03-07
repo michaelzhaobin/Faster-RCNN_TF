@@ -851,24 +851,40 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
     N = num of anchors
     k = real number od objects in a picture
     """
-    
+    """for example overlaps:
+    array([[ -83.,  -39.,  100.,   56.],
+       [-175.,  -87.,  192.,  104.],
+       [-359., -183.,  376.,  200.],
+       [ -55.,  -55.,   72.,   72.],
+       [-119., -119.,  136.,  136.],
+       [-247., -247.,  264.,  264.],
+       [ -35.,  -79.,   52.,   96.],
+       [ -79., -167.,   96.,  184.],
+       [-167., -343.,  184.,  360.]])
+    """
     argmax_overlaps = overlaps.argmax(axis=1)
-    #返回沿轴axis最大值的索引
+    # 返回沿轴axis最大值的索引 (N,) max overlapping class(groundtruth boxes) for every anchor 
+    # array([2, 2, 2, 2, 2, 2, 3, 3, 3])
     max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps]
-    
-    gt_argmax_overlaps = overlaps.argmax(axis=0)
-    gt_max_overlaps = overlaps[gt_argmax_overlaps,
-                               np.arange(overlaps.shape[1])]
+    # 返回沿轴axis最大值 (N,) overlap between that anchor and corresponding max overlapping class every anchpor 
+    # array([100., 192., 376.,  72., 136., 264.,  96., 184., 360.])
+    gt_argmax_overlaps = overlaps.argmax(axis=0) 
+    # 返回沿轴axis最大值的索引 (k ,) or (2, ) max overlapping anchor for every class
+    # array([6, 0, 2, 8])
+    gt_max_overlaps = overlaps[gt_argmax_overlaps, np.arange(overlaps.shape[1])] 
+    # 返回沿轴axis最大值 (N,) or (2,) overlap between that class and corresponding max overlapping anchor every class 
+    # array([-35., -39., 376., 360.])
     gt_argmax_overlaps = np.where(overlaps == gt_max_overlaps)[0]
-
+    # array([0, 2, 6, 8])
     if not cfg.TRAIN.RPN_CLOBBER_POSITIVES:
-        # assign bg labels first so that positive labels can clobber them
-        labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
-
+        # false
+        # assign bg labels first so that positive labels can clobber them (background)
+        labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0 # 0.3
+        
     # fg label: for each gt, anchor with highest overlap
     labels[gt_argmax_overlaps] = 1
 
-    # fg label: above threshold IOU
+    # fg label: above threshold IOU 0.7
     labels[max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
 
     if cfg.TRAIN.RPN_CLOBBER_POSITIVES:
@@ -877,6 +893,7 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
 
     # subsample positive labels if we have too many
     num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
+    # Max number of foreground examples(0.5) *  Total number of examples(256)
     fg_inds = np.where(labels == 1)[0]
     if len(fg_inds) > num_fg:
         disable_inds = npr.choice(
@@ -895,14 +912,43 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
 
     bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
     bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
-
+    #[[11,22,33,44,0],[22,33,44,55,2]]boxes +classes('gt_boxes')
+    #argmax_overlaps: max overlapping class(groundtruth boxes) for every anchor (N(num of anchors),) exa:[0 0 1 0 1 1 1 1 1]
+    """
+    anchors:
+    [[ 125.,  169.,  308.,  264.],
+     [  33.,  121.,  400.,  312.],
+     [-151.,   25.,  584.,  408.],
+     [ 173.,  129.,  260.,  304.],
+     [ 129.,   41.,  304.,  392.],
+     [  41., -135.,  392.,  568.]
+     [ 173.,  129.,  260.,  304.],
+     [ 129.,   41.,  304.,  392.],
+     [  41., -135.,  392.,  568.]]
+    gt_boxes[argmax_overlaps, :]:
+    [[11,22,33,44,0],
+    [11,22,33,44,0]
+    [22,33,44,55,2]
+    [11,22,33,44,0]
+    [22,33,44,55,2]
+    [22,33,44,55,2]
+    [22,33,44,55,2]
+    [22,33,44,55,2]
+    [22,33,44,55,2]]
+    return:
+    num of anchors(N) * 4
+    x move of center, y move of center, width transform , height transform
+    """
     bbox_inside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
     bbox_inside_weights[labels == 1, :] = np.array(cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS)
+    # RPN_BBOX_INSIDE_WEIGHTS = (1.0, 1.0, 1.0, 1.0)
 
     bbox_outside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
     if cfg.TRAIN.RPN_POSITIVE_WEIGHT < 0:
+        #TRAIN.RPN_POSITIVE_WEIGHT = -1.0
         # uniform weighting of examples (given non-uniform sampling)
         num_examples = np.sum(labels >= 0)
+        # useful box numbers 256
         positive_weights = np.ones((1, 4)) * 1.0 / num_examples
         negative_weights = np.ones((1, 4)) * 1.0 / num_examples
     else:
@@ -928,11 +974,19 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
 
     # map up to original set of anchors
     labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
+    # (num of total anchors,)
+    #total_anchors = 196*9; ins_inside: num of inside anchors ;labels: (num of inside anchors, )
+    #0,1,-1
     bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
+    # num of total anchors * 4
+    # x move of center, y move of center, width transform , height transform
     bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside, fill=0)
+    # num of total anchors * 4
     bbox_outside_weights = _unmap(bbox_outside_weights, total_anchors, inds_inside, fill=0)
+    # num of total anchors * 4
 
     if DEBUG:
+        #false
         print 'rpn: max max_overlap', np.max(max_overlaps)
         print 'rpn: num_positive', np.sum(labels == 1)
         print 'rpn: num_negative', np.sum(labels == 0)
@@ -945,17 +999,19 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
     # labels
     #pdb.set_trace()
     labels = labels.reshape((1, height, width, A)).transpose(0, 3, 1, 2)
+    # 1 14 14 9------1,9,14,14
     labels = labels.reshape((1, 1, A * height, width))
+    # ------(1,1,14*9,14)
     rpn_labels = labels
 
     # bbox_targets
-    bbox_targets = bbox_targets \
-        .reshape((1, height, width, A * 4)).transpose(0, 3, 1, 2)
+    bbox_targets = bbox_targets.reshape((1, height, width, A * 4)).transpose(0, 3, 1, 2)
+    # 196*9,4------1,14,14,9*4-------1, 9*4, 14, 14
 
     rpn_bbox_targets = bbox_targets
     # bbox_inside_weights
-    bbox_inside_weights = bbox_inside_weights \
-        .reshape((1, height, width, A * 4)).transpose(0, 3, 1, 2)
+    bbox_inside_weights = bbox_inside_weights .reshape((1, height, width, A * 4)).transpose(0, 3, 1, 2)
+    #96*9,4------1,14,14,9*4-------1, 9*4, 14, 14
     #assert bbox_inside_weights.shape[2] == height
     #assert bbox_inside_weights.shape[3] == width
 
@@ -964,13 +1020,19 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
     # bbox_outside_weights
     bbox_outside_weights = bbox_outside_weights \
         .reshape((1, height, width, A * 4)).transpose(0, 3, 1, 2)
+    #96*9,4------1,14,14,9*4-------1, 9*4, 14, 14
     #assert bbox_outside_weights.shape[2] == height
     #assert bbox_outside_weights.shape[3] == width
 
     rpn_bbox_outside_weights = bbox_outside_weights
 
     return rpn_labels,rpn_bbox_targets,rpn_bbox_inside_weights,rpn_bbox_outside_weights
-
+"""
+rpn_labels:(1,1,14*9,14) elem: 1,0,-1
+rpn_bbox_targets: 1, 9*4, 14, 14 elem: x move of center, y move of center, width transform , height transform
+rpn_bbox_inside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1----[1.0,1,1,1]
+rpn_bbox_outside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1 or 0----[1.0,1,1,1]/256
+"""
 
 
 def _unmap(data, count, inds, fill=0):
