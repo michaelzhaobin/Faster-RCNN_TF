@@ -27,18 +27,19 @@ def bbox_transform(ex_rois, gt_rois):
         (targets_dx, targets_dy, targets_dw, targets_dh)).transpose()
     return targets
 
+#anchors(14*14*9,4), bbox_deltas(14*14*9,4)(dx,dy,w,h)
 def bbox_transform_inv(boxes, deltas):
     if boxes.shape[0] == 0:
         return np.zeros((0, deltas.shape[1]), dtype=deltas.dtype)
 
     boxes = boxes.astype(deltas.dtype, copy=False)
 
-    widths = boxes[:, 2] - boxes[:, 0] + 1.0
+    widths = boxes[:, 2] - boxes[:, 0] + 1.0 #1d
     heights = boxes[:, 3] - boxes[:, 1] + 1.0
     ctr_x = boxes[:, 0] + 0.5 * widths
     ctr_y = boxes[:, 1] + 0.5 * heights
 
-    dx = deltas[:, 0::4]
+    dx = deltas[:, 0::4] #2d
     dy = deltas[:, 1::4]
     dw = deltas[:, 2::4]
     dh = deltas[:, 3::4]
