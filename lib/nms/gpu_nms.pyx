@@ -15,6 +15,7 @@ cdef extern from "gpu_nms.hpp":
 
 def gpu_nms(np.ndarray[np.float32_t, ndim=2] dets, np.float thresh,
             np.int32_t device_id=0):
+    #*5
     cdef int boxes_num = dets.shape[0]
     cdef int boxes_dim = dets.shape[1]
     cdef int num_out
@@ -26,6 +27,6 @@ def gpu_nms(np.ndarray[np.float32_t, ndim=2] dets, np.float thresh,
         order = scores.argsort()[::-1]
     cdef np.ndarray[np.float32_t, ndim=2] \
         sorted_dets = dets[order, :]
-    _nms(&keep[0], &num_out, &sorted_dets[0, 0], boxes_num, boxes_dim, thresh, device_id)
+    _nms(&keep[0], &num_out, &sorted_dets[0, 0], boxes_num, boxes_dim, thresh, device_id) #boxes_dim:5
     keep = keep[:num_out]
     return list(order[keep])
