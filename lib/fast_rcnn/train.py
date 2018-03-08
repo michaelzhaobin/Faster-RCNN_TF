@@ -90,8 +90,12 @@ class SolverWrapper(object):
         sigma2 = sigma * sigma
 
         inside_mul = tf.multiply(bbox_inside_weights, tf.subtract(bbox_pred, bbox_targets))
+        #dot multiply; only let the anchor box of prop(box) = 1 exits, else are 0s
 
         smooth_l1_sign = tf.cast(tf.less(tf.abs(inside_mul), 1.0 / sigma2), tf.float32)
+        #tf.less: Returns the truth value of (x < y) element-wise (tensor of bool)
+        # the elems of inside_mul which is < 1/9 are 1
+        # the elems of inside_mul which is < 1/9 are 0
         smooth_l1_option1 = tf.multiply(tf.multiply(inside_mul, inside_mul), 0.5 * sigma2)
         smooth_l1_option2 = tf.subtract(tf.abs(inside_mul), 0.5 / sigma2)
         smooth_l1_result = tf.add(tf.multiply(smooth_l1_option1, smooth_l1_sign),
@@ -115,28 +119,45 @@ class SolverWrapper(object):
         # rpn_cls_score_reshape: [1, 126(9*14),14,2]; output: [1764(9*14*14), 2]
         # 9: num of anchors
         rpn_label = tf.reshape(self.net.get_output('rpn-data')[0],[-1])
+        """
+        rpn_labels:(1,1,14*9,14) elem: 1,0,-1(sum:14*14*9) including 128(1),128(0),left are -1(random choice of 256 for eliminiting biases)
+        rpn_bbox_targets: 1, 9*4, 14, 14 elem: x move of center, y move of center, width transform , height transform
+                  only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
+        rpn_bbox_inside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1----[1.0,1,1,1]
+                  only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
+        rpn_bbox_outside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1 or 0----[1.0,1,1,1]/
+                  only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
+        """
+        #return (14*14*9,)
+
         rpn_cls_score = tf.reshape(tf.gather(rpn_cls_score,tf.where(tf.not_equal(rpn_label,-1))),[-1,2])
         #tf.not_equal: 返回逐个元素的布尔值; tf.where: 找出tensor里所有True值的index; 
         # tf.gather(params, indices, name = None): 根据indices索引,从params中取对应索引的值,然后返回
+        # find the rows in rpn_cls_score which is useful
         rpn_label = tf.reshape(tf.gather(rpn_label,tf.where(tf.not_equal(rpn_label,-1))),[-1])
+        # find the rows in rpn_label which is useful
         rpn_cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=rpn_cls_score, labels=rpn_label))
-        """
-        第一个参数logits：就是神经网络最后一层的输出，如果有batch的话，它的大小就是[batchsize，num_classes]，单样本的话，大小就是num_classes
+        """第一个参数logits：就是神经网络最后一层的输出，如果有batch的话，它的大小就是[batchsize，num_classes]，单样本的话，大小就是num_classes
         第二个参数labels：实际的标签，大小同上
         then: mean_value.
         """
 
+       
         # bounding box regression L1 loss
         rpn_bbox_pred = self.net.get_output('rpn_bbox_pred')
+        # rpn_bbox_pred:14*14*36 (9 anchors * 4) [1,14,14,36]
         rpn_bbox_targets = tf.transpose(self.net.get_output('rpn-data')[1],[0,2,3,1])
+        # rpn-data[1]: same as former-----[1,14,14,36]
         rpn_bbox_inside_weights = tf.transpose(self.net.get_output('rpn-data')[2],[0,2,3,1])
+        # rpn-data[1]: same as former-----[1,14,14,36]
         rpn_bbox_outside_weights = tf.transpose(self.net.get_output('rpn-data')[3],[0,2,3,1])
 
         rpn_smooth_l1 = self._modified_smooth_l1(3.0, rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights)
         rpn_loss_box = tf.reduce_mean(tf.reduce_sum(rpn_smooth_l1, reduction_indices=[1, 2, 3]))
  
-        # R-CNN
-        # classification loss
+
+       
+        # R-CNN classification loss
         cls_score = self.net.get_output('cls_score')
         label = tf.reshape(self.net.get_output('roi-data')[1],[-1])
         cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=cls_score, labels=label))
