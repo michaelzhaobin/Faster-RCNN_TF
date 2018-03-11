@@ -161,11 +161,17 @@ class Network(object):
                                     name=name)[0]
 
     @layer
+    #input: 'rpn_cls_prob_reshape'(1,14,14,18),'rpn_bbox_pred'(1,14,14,36)((dx,dx,dw,dh)),'im_info': [[max_length, max_width, im_scale]]
+    # _feat_stride:[16,];  anchor_scales:[8,16,32]; cfg_key = 'TRAIN'
     def proposal_layer(self, input, _feat_stride, anchor_scales, cfg_key, name):
         if isinstance(input[0], tuple):
             input[0] = input[0][0]
         return tf.reshape(tf.py_func(proposal_layer_py,[input[0],input[1],input[2], cfg_key, _feat_stride, anchor_scales], [tf.float32]),[-1,5],name =name)
-
+    """
+    return (num of left proposal,*5)
+    blob[:,0]==0
+    blob[:,1:5]: x1,y1,x2,y2
+    """
 
     @layer
     # input: [1,14,14,18]('rpn_cls_score'); [[11,22,33,44,0],[22,33,44,55,2]]boxes +classes('gt_boxes'); 
@@ -189,13 +195,24 @@ class Network(object):
 
 
     @layer
+    #input: rpn_rois: (num of left proposal,*5) blob[:,0]==0 blob[:,1:5]: x1,y1,x2,y2
+    #       gt_boxes: [[11,22,33,44,0],[22,33,44,55,2]]boxes +classes
+    #classes: 21
     def proposal_target_layer(self, input, classes, name):
         if isinstance(input[0], tuple):
             input[0] = input[0][0]
         with tf.variable_scope(name) as scope:
 
             rois,labels,bbox_targets,bbox_inside_weights,bbox_outside_weights = tf.py_func(proposal_target_layer_py,[input[0],input[1],classes],[tf.float32,tf.float32,tf.float32,tf.float32,tf.float32])
-
+            """
+            (1) the final classes of the ground truth correspounding to per pred box [num of finally left proposal,1] 
+                  for ex: [[9],[15],[15],[15],[9],[9]....]
+            (2) (num of finally left proposal, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
+                  [0:fg_rois_per_this_image]: the left foregound; [fg_rois_per_this_image:]:the left background
+            (3): num of finally left proposals * 4*21: [dx,dy,dw,dh] of 1 class in 21
+            (4): num of finally left proposals * 4*21: [1, 1, 1, 1] of 1 class
+            (5): num of finally left proposals * 4*21: [true,true,true,true] of 1 class in 21; [false, false, false, false] in left of the classes
+            """
             rois = tf.reshape(rois,[-1,5] , name = 'rois') 
             labels = tf.convert_to_tensor(tf.cast(labels,tf.int32), name = 'labels')
             bbox_targets = tf.convert_to_tensor(bbox_targets, name = 'bbox_targets')
@@ -204,6 +221,15 @@ class Network(object):
 
            
             return rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights
+            """
+            (1) the final classes of the ground truth correspounding to per pred box [num of finally left proposal,1] 
+                  for ex: [[9],[15],[15],[15],[9],[9]....]
+            (2) (num of finally left proposal, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
+                  [0:fg_rois_per_this_image]: the left foregound; [fg_rois_per_this_image:]:the left background
+            (3): num of finally left proposals * 4*21: [dx,dy,dw,dh] of 1 class in 21
+            (4): num of finally left proposals * 4*21: [1, 1, 1, 1] of 1 class
+            (5): num of finally left proposals * 4*21: [true,true,true,true] of 1 class in 21; [false, false, false, false] in left of the classes
+            """
 
 
     @layer
@@ -211,11 +237,16 @@ class Network(object):
         #input: [1,14,14,18]
         input_shape = tf.shape(input)
         if name == 'rpn_cls_prob_reshape':
+        # d = 18; input(1,14*9,14,2)
              return tf.transpose(tf.reshape(tf.transpose(input,[0,3,1,2]),[input_shape[0],
                     int(d),tf.cast(tf.cast(input_shape[1],tf.float32)/tf.cast(d,tf.float32)*tf.cast(input_shape[3],tf.float32),tf.int32),input_shape[2]]),[0,2,3,1],name=name)
-        # tf.transpose(tf.reshape(tf.transpose(input,[0,3,1,2]),[1,2,14/2*18(126),14]),[0,2,3,1])
-        # output: [1, 126(9*14),14,2]
+        # tf.transpose(tf.reshape(in(1,2,14*9,14),[1,18,14*9/18*2,14]),[0,2,3,1])
+        # output: [1, 14,14,18]
         else:
+        """
+        rpn_cls_score_reshape: input:[1,14,14,18]
+        tf.transpose(tf.reshape(in(1,18,14,14),[1,2,14*18/2,14]),[0,2,3,1]) --------(1,14*9,14,2)
+        """
              return tf.transpose(tf.reshape(tf.transpose(input,[0,3,1,2]),[input_shape[0],
                     int(d),tf.cast(tf.cast(input_shape[1],tf.float32)*(tf.cast(input_shape[3],tf.float32)/tf.cast(d,tf.float32)),tf.int32),input_shape[2]]),[0,2,3,1],name=name)
 
@@ -275,7 +306,9 @@ class Network(object):
     def softmax(self, input, name):
         input_shape = tf.shape(input)
         if name == 'rpn_cls_prob':
+            # input: (1,126(9*14),14,2)
             return tf.reshape(tf.nn.softmax(tf.reshape(input,[-1,input_shape[3]])),[-1,input_shape[1],input_shape[2],input_shape[3]],name=name)
+        # softmax = tf.exp(logits) / tf.reduce_sum(tf.exp(logits))(all sum)
         else:
             return tf.nn.softmax(input,name=name)
 
