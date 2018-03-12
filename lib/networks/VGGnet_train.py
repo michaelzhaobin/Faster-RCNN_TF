@@ -78,33 +78,62 @@ class VGGnet_train(Network):
         # 'rpn_cls_score':[1,14,14,18]; 'gt_boxes': [[11,22,33,44,0],[22,33,44,55,2]]boxes +classes; 
         # 'im_info': [[max_length, max_width, im_scale]]; ['data']: [1,maxL,maxH,3]
         (self.feed('rpn_cls_score','gt_boxes','im_info','data')
-             .anchor_target_layer(_feat_stride, anchor_scales, name = 'rpn-data' ))
+             .anchor_target_layer(_feat_stride, anchor_scales, name = 'rpn-data' ))#<<<<<<<<<<<<<<<<<<
+        """
+        rpn_labels:(1,1,14*9,14) elem: 1,0,-1(sum:14*14*9) including 128(1),128(0),left are -1
+        rpn_bbox_targets: 1, 9*4, 14, 14 elem: x move of center, y move of center, width transform , height transform
+                  only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
+        rpn_bbox_inside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1----[1.0,1,1,1]
+                  only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
+        rpn_bbox_outside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1 or 0----[1.0,1,1,1]/
+                  only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
+        """
 
         # Loss of rpn_cls & rpn_boxes
-
         (self.feed('rpn_conv/3x3')
-             .conv(1,1,len(anchor_scales)*3*4, 1, 1, padding='VALID', relu = False, name='rpn_bbox_pred'))
+             .conv(1,1,len(anchor_scales)*3*4, 1, 1, padding='VALID', relu = False, name='rpn_bbox_pred')) #<<<<<<<<<<<<<<<<<
+         #output: 14*14*36 (9 anchors * 4) [1,14,14,36](dx,dx,dw,dh)
 
         #========= RoI Proposal ============
         (self.feed('rpn_cls_score')
-             .reshape_layer(2,name = 'rpn_cls_score_reshape')
-         # output: [1, 126(9*14),14,2]
+             .reshape_layer(2,name = 'rpn_cls_score_reshape')#<<<<<<<<<<<<<<<<<<
+        # output: [1, 126(9*14),14,2]
              .softmax(name='rpn_cls_prob'))
+        # output: [1, 126(9*14),14,2]
 
         (self.feed('rpn_cls_prob')
              .reshape_layer(len(anchor_scales)*3*2,name = 'rpn_cls_prob_reshape'))
+        # output: (1,14,14,18)
        
 
         (self.feed('rpn_cls_prob_reshape','rpn_bbox_pred','im_info')
-             .proposal_layer(_feat_stride, anchor_scales, 'TRAIN',name = 'rpn_rois'))
+             .proposal_layer(_feat_stride, anchor_scales, 'TRAIN',name = 'rpn_rois')) 
+        """
+        choose boxes
+        return (num of left proposal,*5)
+        blob[:,0]==0
+        blob[:,1:5]: x1,y1,x2,y2
+        """
 
+        #'gt_boxes': [[11,22,33,44,0],[22,33,44,55,2]]boxes +classes;
         (self.feed('rpn_rois','gt_boxes')
              .proposal_target_layer(n_classes,name = 'roi-data'))
+        """
+(1) rois: (num of finally left proposal, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
+          [0:fg_rois_per_this_image]: the left foregound; [fg_rois_per_this_image:]:the left background
+(2) the final classes of the ground truth correspounding to per pred box [num of finally left proposal,1] 
+        for ex: [[9],[15],[15],[15],[9],[9]....]
+
+(3): num of finally left proposals * 4*21: [dx,dy,dw,dh] of 1 class in 21
+(4): num of finally left proposals * 4*21: [1, 1, 1, 1] of 1 class
+(5): num of finally left proposals * 4*21: [true,true,true,true] of 1 class in 21; [false, false, false, false] in left of the classes
+"""
 
 
         #========= RCNN ============
         (self.feed('conv5_3', 'roi-data')
              .roi_pool(7, 7, 1.0/16, name='pool_5')
+         # output: (num_rois, h, w, channels)  around(42, 7, 7, 512)
              .fc(4096, name='fc6')
              .dropout(0.5, name='drop6')
              .fc(4096, name='fc7')
