@@ -164,12 +164,14 @@ def im_detect(sess, net, im, boxes=None):
     # forward pass
     if cfg.TEST.HAS_RPN:
         feed_dict={net.data: blobs['data'], net.im_info: blobs['im_info'], net.keep_prob: 1.0}
+        #data: [1,maxL,maxH,3];'im_info': [[max_length, max_width, im_scale(the scale of enlargement or shrink)]]
     else:
         feed_dict={net.data: blobs['data'], net.rois: blobs['rois'], net.keep_prob: 1.0}
 
     run_options = None
     run_metadata = None
     if cfg.TEST.DEBUG_TIMELINE:
+        #false
         run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
         run_metadata = tf.RunMetadata()
 
@@ -177,24 +179,33 @@ def im_detect(sess, net, im, boxes=None):
                                                     feed_dict=feed_dict,
                                                     options=run_options,
                                                     run_metadata=run_metadata)
+    # cls_score: (num of final left images,21)(before softmax); cls_prob: (num of final left images,21)(after softmax)
+    # bbox_pred: (num of final left boxes, 21*4); rois: (num of left proposal,*5) blob[:,0]==0 blob[:,1:5]: x1,y1,x2,y2
 
     if cfg.TEST.HAS_RPN:
         assert len(im_scales) == 1, "Only single-image batch implemented"
         boxes = rois[:, 1:5] / im_scales[0]
+        #return the size coresponding to the original image
 
 
     if cfg.TEST.SVM:
+        #false
         # use the raw scores before softmax under the assumption they
         # were trained as linear SVMs
         scores = cls_score
     else:
         # use softmax estimated probabilities
         scores = cls_prob
+    #cls_prob: (num of final left images,21)(after softmax)
 
     if cfg.TEST.BBOX_REG:
+        #True
         # Apply bounding-box regression deltas
         box_deltas = bbox_pred
+        # (num of final left boxes, 21*4)
         pred_boxes = bbox_transform_inv(boxes, box_deltas)
+        # middle result(x1,y1,x2,y2); final result (dx,dy,dw,dh) relative to rois.
+        # return (*, 4) [x1,y1,x2,y3]
         pred_boxes = _clip_boxes(pred_boxes, im.shape)
     else:
         # Simply repeat the boxes, once for each class
@@ -206,12 +217,15 @@ def im_detect(sess, net, im, boxes=None):
         pred_boxes = pred_boxes[inv_index, :]
 
     if cfg.TEST.DEBUG_TIMELINE:
+        #false
         trace = timeline.Timeline(step_stats=run_metadata.step_stats)
         trace_file = open(str(long(time.time() * 1000)) + '-test-timeline.ctf.json', 'w')
         trace_file.write(trace.generate_chrome_trace_format(show_memory=False))
         trace_file.close()
 
     return scores, pred_boxes
+# (1) cls_prob: (num of final left images,21)(after softmax)
+# (2) (*, 4) [x1,y1,x2,y3]
 
 
 def vis_detections(im, class_name, dets, thresh=0.8):
