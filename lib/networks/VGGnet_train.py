@@ -108,6 +108,7 @@ class VGGnet_train(Network):
 
         (self.feed('rpn_cls_prob_reshape','rpn_bbox_pred','im_info')
              .proposal_layer(_feat_stride, anchor_scales, 'TRAIN',name = 'rpn_rois')) 
+        # choose pred_box by itself
         """
         choose boxes
         return (num of left proposal,*5)
@@ -118,6 +119,7 @@ class VGGnet_train(Network):
         #'gt_boxes': [[11,22,33,44,0],[22,33,44,55,2]]boxes +classes;
         (self.feed('rpn_rois','gt_boxes')
              .proposal_target_layer(n_classes,name = 'roi-data'))
+        #choose pred_box by itself and the overlaps with the gt_boxes
         """
 (1) rois: (num of finally left proposal, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
           [0:fg_rois_per_this_image]: the left foregound; [fg_rois_per_this_image:]:the left background
@@ -135,10 +137,13 @@ class VGGnet_train(Network):
              .roi_pool(7, 7, 1.0/16, name='pool_5')
          # output: (num_rois, h, w, channels)  around(42, 7, 7, 512)
              .fc(4096, name='fc6')
+         # num of left proposals * 4096
              .dropout(0.5, name='drop6')
              .fc(4096, name='fc7')
+         # num of left proposals * 4096
              .dropout(0.5, name='drop7')
              .fc(n_classes, relu=False, name='cls_score')
+         # num of left proposals * 21
              .softmax(name='cls_prob'))
 
         (self.feed('drop7')
