@@ -236,7 +236,8 @@ class Network(object):
 (1) rois: (num of finally left proposal, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
           [0:fg_rois_per_this_image]: the left foregound; [fg_rois_per_this_image:]:the left background
 (2) the final classes of the ground truth correspounding to per pred box [num of finally left proposal,1] 
-        for ex: [[9],[15],[15],[15],[9],[9]....]
+        for ex: [[9],[15],[15],[15],[9],[9]....] 
+        (num of fg_box: ) = 0
 
 (3): num of finally left proposals * 4*21: [dx,dy,dw,dh] of 1 class in 21
 (4): num of finally left proposals * 4*21: [1, 1, 1, 1] of 1 class
@@ -296,7 +297,8 @@ class Network(object):
                 dim = 1
                 for d in input_shape[1:].as_list():
                     dim *= d
-                feed_in = tf.reshape(tf.transpose(input,[0,3,1,2]), [-1, dim])
+                feed_in = tf.reshape(tf.transpose(input,[0,3,1,2]), [-1, dim]) 
+                #return: num of left proposals * dim
             else:
                 feed_in, dim = (input, int(input_shape[-1]))
 
@@ -313,6 +315,7 @@ class Network(object):
             op = tf.nn.relu_layer if relu else tf.nn.xw_plus_b
             fc = op(feed_in, weights, biases, name=scope.name)
             return fc
+        # return: num of final left proposals * num_out
 
     @layer
     def softmax(self, input, name):
