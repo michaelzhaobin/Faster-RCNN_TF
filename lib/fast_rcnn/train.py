@@ -48,6 +48,7 @@ class SolverWrapper(object):
         net = self.net
 
         if cfg.TRAIN.BBOX_REG and net.layers.has_key('bbox_pred'):
+            # BBOX_RED: True; 
             # save original values
             with tf.variable_scope('bbox_pred', reuse=True):
                 weights = tf.get_variable("weights")
@@ -129,7 +130,6 @@ class SolverWrapper(object):
                   only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
         """
         #return (14*14*9,)
-
         rpn_cls_score = tf.reshape(tf.gather(rpn_cls_score,tf.where(tf.not_equal(rpn_label,-1))),[-1,2])
         #tf.not_equal: 返回逐个元素的布尔值; tf.where: 找出tensor里所有True值的index; 
         # tf.gather(params, indices, name = None): 根据indices索引,从params中取对应索引的值,然后返回
@@ -151,7 +151,6 @@ class SolverWrapper(object):
         rpn_bbox_inside_weights = tf.transpose(self.net.get_output('rpn-data')[2],[0,2,3,1])
         # rpn-data[1]: same as former-----[1,14,14,36]
         rpn_bbox_outside_weights = tf.transpose(self.net.get_output('rpn-data')[3],[0,2,3,1])
-
         rpn_smooth_l1 = self._modified_smooth_l1(3.0, rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights)
         rpn_loss_box = tf.reduce_mean(tf.reduce_sum(rpn_smooth_l1, reduction_indices=[1, 2, 3]))
  
@@ -159,9 +158,14 @@ class SolverWrapper(object):
        
         # R-CNN classification loss
         cls_score = self.net.get_output('cls_score')
+        # (num of final left proposals, 21)
         label = tf.reshape(self.net.get_output('roi-data')[1],[-1])
+        # (num of final left proposals,)
         cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=cls_score, labels=label))
+        # cls_score: (n)
 
+        
+        
         # bounding box regression L1 loss
         bbox_pred = self.net.get_output('bbox_pred')
         bbox_targets = self.net.get_output('roi-data')[2]
@@ -170,10 +174,12 @@ class SolverWrapper(object):
 
         smooth_l1 = self._modified_smooth_l1(1.0, bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
         loss_box = tf.reduce_mean(tf.reduce_sum(smooth_l1, reduction_indices=[1]))
+        
+        
+        
 
         # final loss
         loss = cross_entropy + loss_box + rpn_cross_entropy + rpn_loss_box
-
         # optimizer and learning rate
         global_step = tf.Variable(0, trainable=False)
         lr = tf.train.exponential_decay(cfg.TRAIN.LEARNING_RATE, global_step,
@@ -233,11 +239,13 @@ class SolverWrapper(object):
                 trace_file.close()
 
             if (iter+1) % (cfg.TRAIN.DISPLAY) == 0:
+                # cfg.TRAIN.DISPLAY = 10
                 print 'iter: %d / %d, total loss: %.4f, rpn_loss_cls: %.4f, rpn_loss_box: %.4f, loss_cls: %.4f, loss_box: %.4f, lr: %f'%\
                         (iter+1, max_iters, rpn_loss_cls_value + rpn_loss_box_value + loss_cls_value + loss_box_value ,rpn_loss_cls_value, rpn_loss_box_value,loss_cls_value, loss_box_value, lr.eval())
                 print 'speed: {:.3f}s / iter'.format(timer.average_time)
 
             if (iter+1) % cfg.TRAIN.SNAPSHOT_ITERS == 0:
+                # SNAPSHOT_ITERS = 5000
                 last_snapshot_iter = iter
                 self.snapshot(sess, iter)
 
