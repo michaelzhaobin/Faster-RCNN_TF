@@ -74,12 +74,18 @@ if __name__ == '__main__':
     weights_filename = os.path.splitext(os.path.basename(args.model))[0]
 
     imdb = get_imdb(args.imdb_name)
+    #voc_2017_test
     imdb.competition_mode(args.comp_mode)
+    # false
+    # self.config['use_salt'] = True
+    # self.config['cleanup'] = True
 
     device_name = '/{}:{:d}'.format(args.device,args.device_id)
+    #gpu_0
     print device_name
 
     network = get_network(args.network_name)
+    # VGGnet_test
     print 'Use network `{:s}` in training'.format(args.network_name)
 
     if args.device == 'gpu':
