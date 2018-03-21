@@ -18,6 +18,7 @@ class imdb(object):
     """Image database."""
 
     def __init__(self, name):
+        #training: voc_2017_trainval
         self._name = name
         self._num_classes = 0
         self._classes = []
