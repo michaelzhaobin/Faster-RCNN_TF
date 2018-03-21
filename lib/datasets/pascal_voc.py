@@ -22,12 +22,17 @@ import pdb
 
 
 class pascal_voc(imdb):
+    #training: pascal_voc(trainval, 2007)
     def __init__(self, image_set, year, devkit_path=None):
         imdb.__init__(self, 'voc_' + year + '_' + image_set)
+        # training: voc_2007_trainval
         self._year = year
+        # training: 2007
         self._image_set = image_set
+        # training: trainval
         self._devkit_path = self._get_default_path() if devkit_path is None \
                             else devkit_path
+        # data/VOCdevkit2007
         self._data_path = os.path.join(self._devkit_path, 'VOC' + self._year)
         # data/VOCdevkit2007/VOC2007
         self._classes = ('__background__', # always index 0
@@ -37,12 +42,51 @@ class pascal_voc(imdb):
                          'motorbike', 'person', 'pottedplant',
                          'sheep', 'sofa', 'train', 'tvmonitor')
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
+        """
+        {'background': 0; 'aeroplane': 1, . . . . }
+        """
         self._image_ext = '.jpg'
         self._image_index = self._load_image_set_index()
         #['000005', '000007', '000009', '000012', '000016',......]
         # Default to roidb handler
         #self._roidb_handler = self.selective_search_roidb
         self._roidb_handler = self.gt_roidb
+        """
+    the result(an example)(2 objects in picture:person,cat):
+    {
+    'boxes':
+    [[23,34,54,32],
+     [432,45,6,43]]
+    'gt_classes': 
+    [16,8] #the number corresponding to person and cat
+    'gt_overlaps':
+    (0, 15)  1
+    (1, 7)   1
+    #num_of_classes, 
+    'flipped':
+    False
+    seg_areas:
+    [432,53]
+    #areas of boxes
+    }
+    if have flipped:
+    {
+    'boxes':
+    [[23,34,54,32],
+     [432,45,6,43]](changed)
+    'gt_classes': 
+    [16,8] #the number corresponding to person and cat
+    'gt_overlaps':
+    (0, 15)  1
+    (1, 7)   1
+    #num_of_classes, 
+    'flipped':
+    True
+    seg_areas:
+    [432,53]
+    #areas of boxes
+    }
+    """
         self._salt = str(uuid.uuid4())
         self._comp_id = 'comp4'
 
@@ -94,6 +138,7 @@ class pascal_voc(imdb):
         Return the default path where PASCAL VOC is expected to be installed.
         """
         return os.path.join(cfg.DATA_DIR, 'VOCdevkit' + self._year)
+        # data/VOCdevkit2007
 
     def gt_roidb(self):
         """
@@ -102,6 +147,7 @@ class pascal_voc(imdb):
         This function loads/saves from/to a cache file to speed up future calls.
         """
         cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb.pkl')
+        # data/cache/voc_2017_trainval_gt_roidb.pkl
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
                 roidb = cPickle.load(fid)
@@ -245,7 +291,7 @@ class pascal_voc(imdb):
     [16,8] #the number corresponding to person and cat
     'gt_overlaps':
     (0 15)  1
-    (0,7)   1
+    (1,7)   1
     'flipped':
     False
     seg_areas:
