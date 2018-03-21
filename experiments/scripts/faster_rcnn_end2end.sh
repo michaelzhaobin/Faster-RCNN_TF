@@ -8,14 +8,16 @@
 #   --set EXP_DIR foobar RNG_SEED 42 TRAIN.SCALES "[400, 500, 600, 700]"
 
 set -x
+#知道脚本内部执行的变量的值或执行结果
 set -e
+#就是当命令以非零状态退出时，则退出shell。主要作用是，当脚本执行出现意料之外的情况时，立即退出，避免错误被忽略，导致最终结果不正确
 
 export PYTHONUNBUFFERED="True"
 
-DEV=$1
-DEV_ID=$2
-NET=$3
-DATASET=$4
+DEV=$1 #gpu
+DEV_ID=$2 #0
+NET=$3 #VGG16 
+DATASET=$4 # pascal_voc
 
 array=( $@ )
 len=${#array[@]}
@@ -55,6 +57,11 @@ time python ./tools/train_net.py --device ${DEV} --device_id ${DEV_ID} \
   --cfg experiments/cfgs/faster_rcnn_end2end.yml \
   --network VGGnet_train \
   ${EXTRA_ARGS}
+  
+#time python ./tools/train_net.py --device gpu --device_id 0 --weights data/pretrain_model/VGG_imagenet.npy 
+#  --imdb voc_2007_trainval --iters 70000 --cfg experiments/cfgs/faster_rcnn_end2end.yml --network VGGnet_train ${EXTRA_ARGS}
+
+ 
 
 set +x
 NET_FINAL=`grep -B 1 "done solving" ${LOG} | grep "Wrote snapshot" | awk '{print $4}'`
@@ -66,3 +73,4 @@ time python ./tools/test_net.py --device ${DEV} --device_id ${DEV_ID} \
   --cfg experiments/cfgs/faster_rcnn_end2end.yml \
   --network VGGnet_test \
   ${EXTRA_ARGS}
+
