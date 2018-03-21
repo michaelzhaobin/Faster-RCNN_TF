@@ -255,13 +255,15 @@ class SolverWrapper(object):
 def get_training_roidb(imdb):
     """Returns a roidb (Region of Interest database) for use in training."""
     if cfg.TRAIN.USE_FLIPPED:
+        # True
         print 'Appending horizontally-flipped training examples...'
         imdb.append_flipped_images()
         print 'done'
 
     print 'Preparing training data...'
     if cfg.TRAIN.HAS_RPN:
-        if cfg.IS_MULTISCALE:
+        #True
+        if cfg.IS_MULTISCALE:# false
             gdl_roidb.prepare_roidb(imdb)
         else:
             rdl_roidb.prepare_roidb(imdb)
@@ -282,10 +284,9 @@ imdb.roidb[i](an image example i)(2 objects in picture:person,cat):
     (0 15)  1
     (1,7)   1
     'flipped':
-    False
+    False(or True)
     seg_areas:
     [432,53]
-    }
     'image':image_path
     'widthr': width of a image
     'height': heigth of a image
