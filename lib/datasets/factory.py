@@ -77,10 +77,12 @@ for split in ['71', '370']:
 
 
 def get_imdb(name):
+    #name(train): voc_2007_trainval
     """Get an imdb (image database) by name."""
     if not __sets.has_key(name):
         raise KeyError('Unknown dataset: {}'.format(name))
     return __sets[name]()
+#return: datasets.pascal_voc(trainval, 2007)
 
 def list_imdbs():
     """List all registered imdbs."""
