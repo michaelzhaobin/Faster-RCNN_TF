@@ -38,7 +38,7 @@ def get_minibatch(roidb, num_classes):
     # Get the input image blob, formatted for caffe
     im_blob, im_scales = _get_image_blob(roidb, random_scale_inds)
     #im_blobs:[2,maxL,maxH,3]
-    #im_scales: [600/min_scale, 600/..], the multifying facter
+    #im_scales: 缩放比例
 
     blobs = {'data': im_blob}
 
@@ -54,14 +54,14 @@ def get_minibatch(roidb, num_classes):
         gt_boxes[:, 4] = roidb[0]['gt_classes'][gt_inds]
         blobs['gt_boxes'] = gt_boxes
         """
-        [[11,22,33,44,0]
-        [22,33,44,55,2]
-        ]boxes +classes
+        [[11,22,33,44,16]
+         [22,33,44,55,8 ]]
+         boxes +classes
         """
         blobs['im_info'] = np.array(
             [[im_blob.shape[1], im_blob.shape[2], im_scales[0]]],
             dtype=np.float32)
-        #[[max_length, max_width, im_scale]]
+        #[[maxL, maxW, im_scale]]
     else: # not using RPN
         # Now, build the region of interest and label blobs
         rois_blob = np.zeros((0, 5), dtype=np.float32)
@@ -162,18 +162,18 @@ def _get_image_blob(roidb, scale_inds):
         im, im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,
                                         cfg.TRAIN.MAX_SIZE)
         # prep_im_for_blob(im, [[[102.9801, 115.9465, 122.7717]]], 600, 1000)
-        # im_scale = 600 / float(im_size_min)
-        # im = cv2.resize(im, None, None, fx=im_scale, fy=im_scale,
-        # interpolation=cv2.INTER_LINEAR)
+        # im_scale = 600 / float(im_size_min) or 1000 / float(im_size_max) 缩放的比例
+        # im = cv2.resize(im, None, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_LINEAR)
         im_scales.append(im_scale)
         processed_ims.append(im)
 
     # Create a blob to hold the input images
     blob = im_list_to_blob(processed_ims)
+    # blobs:[2,maxL,maxH,3]
 
     return blob, im_scales
     #blobs:[2,maxL,maxH,3]
-    #im_scales: [600/max_height, 600/..]
+    #im_scales: 缩放比例
 
 def _project_im_rois(im_rois, im_scale_factor):
     """Project image RoIs into the rescaled training image."""
