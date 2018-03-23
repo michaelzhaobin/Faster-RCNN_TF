@@ -71,10 +71,10 @@ __C.TRAIN.BATCH_SIZE = 128
 # Fraction of minibatch that is labeled foreground (i.e. class > 0)
 __C.TRAIN.FG_FRACTION = 0.25
 
-# Overlap threshold for a ROI to be considered foreground (if >= FG_THRESH)
+# Overlap threshold for a ROI from the original image to be considered foreground (if >= FG_THRESH)
 __C.TRAIN.FG_THRESH = 0.5
 
-# Overlap threshold for a ROI to be considered background (class = 0 if
+# Overlap threshold for a ROI from the original image to be considered background (class = 0 if
 # overlap in [LO, HI))
 __C.TRAIN.BG_THRESH_HI = 0.5
 __C.TRAIN.BG_THRESH_LO = 0.1
@@ -249,11 +249,14 @@ def get_output_dir(imdb, weights_filename):
     (if not None).
     """
     outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'output', __C.EXP_DIR, imdb.name))
+    #./output/default/voc_2017_trainval
     if weights_filename is not None:
+        #indeed None
         outdir = osp.join(outdir, weights_filename)
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     return outdir
+    #./output/default/voc_2017_trainval
 
 def _merge_a_into_b(a, b):
     """Merge config dictionary a into config dictionary b, clobbering the
