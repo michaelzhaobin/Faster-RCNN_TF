@@ -33,6 +33,12 @@ import numpy as np
 #       [ -35.,  -79.,   52.,   96.],
 #       [ -79., -167.,   96.,  184.],
 #       [-167., -343.,  184.,  360.]])
+# 是将下面的矩阵每一行分别放大8，16，32倍
+#[[-1.5, 3 ,19.5, 15]
+# [1, 0.5, 17, 16.5]
+# [3.5 -1.5 13.5 19.5]] 
+#the area of all anchors equals 256(16*16) and enter (8,8) but they have different aspect ratios
+ 
 
 def generate_anchors(base_size=16, ratios=[0.5, 1, 2],
                      scales=2**np.arange(3, 6)):
@@ -45,10 +51,10 @@ def generate_anchors(base_size=16, ratios=[0.5, 1, 2],
     base_anchor = np.array([1, 1, base_size, base_size]) - 1
     ratio_anchors = _ratio_enum(base_anchor, ratios)
     """
-  [[-1.5, 3 ,19.5, 14]
-   [1, 0.5, 16, 16.5]
+  [[-1.5, 3 ,19.5, 15]
+   [1, 0.5, 17, 16.5]
    [3.5 -1.5 13.5 19.5]
-  ]
+  ] the area of all anchors equals 256(16*16) and enter (8,8) but they have different aspect ratios
   """
     anchors = np.vstack([_scale_enum(ratio_anchors[i, :], scales)
                          for i in xrange(ratio_anchors.shape[0])])
@@ -132,7 +138,7 @@ def _ratio_enum(anchor, ratios):
   """
 
 def _scale_enum(anchor, scales):
-  #anchor: [-1.5, 3 ,19.5, 14] scales: [8, 16, 32]
+  #anchor: [1, 0.5, 17, 16.5] scales: [8, 16, 32]
     """
     Enumerate a set of anchors for each scale wrt an anchor.
     """
