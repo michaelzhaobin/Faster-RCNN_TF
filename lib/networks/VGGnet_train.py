@@ -13,9 +13,14 @@ class VGGnet_train(Network):
     def __init__(self, trainable=True):
         self.inputs = []
         self.data = tf.placeholder(tf.float32, shape=[None, None, None, 3])
+        # shape：[1,maxL,maxH,3]
         self.im_info = tf.placeholder(tf.float32, shape=[None, 3])
+        # [[max_length, max_width, im_scale]]
         self.gt_boxes = tf.placeholder(tf.float32, shape=[None, 5])
+        #[[11,22,33,44, 16]
+        # [22,33,44,55, 8]]boxes +classes
         self.keep_prob = tf.placeholder(tf.float32)
+        # 0.5
         self.layers = dict({'data':self.data, 'im_info':self.im_info, 'gt_boxes':self.gt_boxes})
         self.trainable = trainable
         self.setup()
@@ -33,7 +38,8 @@ class VGGnet_train(Network):
 
     def setup(self):
         (self.feed('data')
-         #input: 224*224*3
+         # input: 224*224*3 
+         # this layer only change the self.inputs 
              .conv(3, 3, 64, 1, 1, name='conv1_1', trainable=False)
          #output: 224*224*64
              .conv(3, 3, 64, 1, 1, name='conv1_2', trainable=False)
@@ -73,9 +79,9 @@ class VGGnet_train(Network):
              .conv(3,3,512,1,1,name='rpn_conv/3x3')
          #output: 14*14*512
              .conv(1,1,len(anchor_scales)*3*2 ,1 , 1, padding='VALID', relu = False, name='rpn_cls_score'))
-        #output: 14*14*18 (9 anchors * 2 object scores) [1,14,14,18]
+        #output: 14*14*18 (9 anchors * 2 object scores) [1,14,14,18] tensorflow的表示方式
         
-        # 'rpn_cls_score':[1,14,14,18]; 'gt_boxes': [[11,22,33,44,0],[22,33,44,55,2]]boxes +classes; 
+        # 'rpn_cls_score':[1,14,14,18]; 'gt_boxes': [[11,22,33,44, 16],[22,33,44,55, 8]]boxes +classes; 
         # 'im_info': [[max_length, max_width, im_scale]]; ['data']: [1,maxL,maxH,3]
         (self.feed('rpn_cls_score','gt_boxes','im_info','data')
              .anchor_target_layer(_feat_stride, anchor_scales, name = 'rpn-data' ))#<<<<<<<<<<<<<<<<<<
