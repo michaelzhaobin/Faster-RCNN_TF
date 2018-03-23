@@ -16,7 +16,7 @@ from fast_rcnn.bbox_transform import bbox_transform
 import pdb
 
 DEBUG = False
-#input: [1,14,14,18]('rpn_cls_score'); [[11,22,33,44,0],[22,33,44,55,2]]boxes +classes('gt_boxes'); 
+#input: [1,14,14,18]('rpn_cls_score'); [[11,22,33,44,16],[22,33,44,55,8]]boxes +classes('gt_boxes'); 
 #       [[max_length, max_width, im_scale]]('im_info'); [1,maxL,maxH,3]('data')
 #       _feat_stride = [16,]; anchor_scales = [8, 16, 32]
 def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [16,], anchor_scales = [4 ,8, 16, 32]):
@@ -25,8 +25,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
     labels and bounding-box regression targets.
     """
     _anchors = generate_anchors(scales=np.array(anchor_scales))
-    """
-#      [[ -83.,  -39.,  100.,   56.],
+#array([[ -83.,  -39.,  100.,   56.],
 #       [-175.,  -87.,  192.,  104.],
 #       [-359., -183.,  376.,  200.],
 #       [ -55.,  -55.,   72.,   72.],
@@ -34,15 +33,17 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, data, _feat_stride = [
 #       [-247., -247.,  264.,  264.],
 #       [ -35.,  -79.,   52.,   96.],
 #       [ -79., -167.,   96.,  184.],
-#       [-167., -343.,  184.,  360.]])
-
-#      [[ -83.,  -39.,  100.,   56.],[-175.,  -87.,  192.,  104.],[-359., -183.,  376.,  200.],[ -55.,  -55.,   72.,   72.],
-#       [-119., -119.,  136.,  136.],[-247., -247.,  264.,  264.],[ -35.,  -79.,   52.,   96.],[ -79., -167.,   96.,  184.],[-167., -343.,  184.,  360.]])
-    """
+#       [-167., -343.,  184.,  360.]]) (x1,y1,x2,y2)
+# 是将下面的矩阵所属矩形的长宽放大8，16，32倍，最小anchors：128*128；最大anchors：512*512。如果想要检测大多数是小物体的图片，应该用更小的anchors
+#[[-1.5, 3 ,19.5, 15]
+# [1, 0.5, 17, 16.5]
+# [3.5 -1.5 13.5 19.5]] 
+#the area of all anchors equals 256(16*16) and enter (8,8) but they have different aspect ratios
     _num_anchors = _anchors.shape[0]
     # 9
 
     if DEBUG:
+        #false
         print 'anchors:'
         print _anchors
         print 'anchor shapes:'
@@ -818,7 +819,7 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
     all_anchors = all_anchors.reshape((K * A, 4))
     total_anchors = int(K * A)
 
-    # only keep anchors inside the image
+    # return the index of anchors only inside the image
     inds_inside = np.where(
         (all_anchors[:, 0] >= -_allowed_border) &
         (all_anchors[:, 1] >= -_allowed_border) &
@@ -848,8 +849,8 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
     """boxes: (N, 4) ndarray of float
     query_boxes: (K, 4) ndarray of float
     overlaps: (N, K) ndarray of overlap between boxes and query_boxes
-    N = num of anchors
-    k = real number od objects in a picture
+    N = num of anchors (大约100多个)
+    k = real number od objects in a picture （比如四个）
     """
     """for example overlaps:
     array([[ -83.,  -39.,  100.,   56.],
@@ -864,9 +865,10 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
     """
     argmax_overlaps = overlaps.argmax(axis=1)
     # 返回沿轴axis最大值的索引 (N,) max overlapping class(groundtruth boxes) for every anchor 
-    # array([2, 2, 2, 2, 2, 2, 3, 3, 3])
+    # array([2, 2, 2, 2, 2, 2, 3, 3, 3, ....]) shape(around more than 100, )
     max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps]
-    # 返回沿轴axis最大值 (N,) overlap between that anchor and corresponding max overlapping class every anchpor 
+    # 返回沿轴axis最大值 (N,) overlap between that anchor and corresponding max overlapping class every anchor 
+    # 即返回argmax_overlaps对应的值
     # array([100., 192., 376.,  72., 136., 264.,  96., 184., 360.])
     gt_argmax_overlaps = overlaps.argmax(axis=0) 
     # 返回沿轴axis最大值的索引 (k ,) or (2, ) max overlapping anchor for every class
@@ -884,21 +886,23 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
     # fg label: for each gt, anchor with highest overlap
     labels[gt_argmax_overlaps] = 1
 
-    # fg label: above threshold IOU 0.7
+    # fg label: above threshold IOU 0.7（每一个anchor，不管与哪一个gt_box有最大交叠）
     labels[max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
 
     if cfg.TRAIN.RPN_CLOBBER_POSITIVES:
+        # false
         # assign bg labels last so that negative labels can clobber positives
         labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
 
     # subsample positive labels if we have too many
-    num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
+    num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE) 
     # Max number of foreground examples(0.5) *  Total number of examples(256)
     fg_inds = np.where(labels == 1)[0]
     if len(fg_inds) > num_fg:
         disable_inds = npr.choice(
             fg_inds, size=(len(fg_inds) - num_fg), replace=False)
         labels[disable_inds] = -1
+    #从label=1中删除，如果1的数目大于128个，随机删除至128个。如果1的数目小于等于128个，不做变化
 
     # subsample negative labels if we have too many
     num_bg = cfg.TRAIN.RPN_BATCHSIZE - np.sum(labels == 1)
@@ -909,7 +913,8 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
         labels[disable_inds] = -1
         #print "was %s inds, disabling %s, now %s inds" % (
             #len(bg_inds), len(disable_inds), np.sum(labels == 0))
-
+    ##从label=1中删除，如果1的数目大于(all_num-numfg)个，随机删除至(all_num-numfg)个。如果1的数目小于等于(all_num-numfg)个，不做变化
+            
     bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
     bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
     #[[11,22,33,44,0],[22,33,44,55,2]]boxes +classes('gt_boxes')
@@ -945,7 +950,7 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
 
     bbox_outside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
     if cfg.TRAIN.RPN_POSITIVE_WEIGHT < 0:
-        #TRAIN.RPN_POSITIVE_WEIGHT = -1.0
+        #-1.0
         # uniform weighting of examples (given non-uniform sampling)
         num_examples = np.sum(labels >= 0)
         # useful box numbers 256
@@ -958,8 +963,8 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
                             np.sum(labels == 1))
         negative_weights = ((1.0 - cfg.TRAIN.RPN_POSITIVE_WEIGHT) /
                             np.sum(labels == 0))
-    bbox_outside_weights[labels == 1, :] = positive_weights
-    bbox_outside_weights[labels == 0, :] = negative_weights
+    bbox_outside_weights[labels == 1, :] = positive_weights #[1/128,1/128,1/128,1/128]
+    bbox_outside_weights[labels == 0, :] = negative_weights #[1/128,1/128,1/128,1/128]
 
     if DEBUG:
         _sums += bbox_targets[labels == 1, :].sum(axis=0)
@@ -974,12 +979,14 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
 
     # map up to original set of anchors
     labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
-    # (num of total anchors,)
-    #total_anchors = 196*9; ins_inside: num of inside anchors ;labels: (num of inside anchors, )
-    #0,1,-1
+    #labels: (num of total anchors（inside anchors）, )
+    #total_anchors = 196*9; ins_inside: (num of inside anchors， ） 
+    #return （196*9，）；256 of them is the after-choose where the value 1 represent fg and the value
+    #0 represent bg; the rest of them is -1,which will be not considered
     bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
-    # num of total anchors * 4
+    # num of total anchors,4
     # x move of center, y move of center, width transform , height transform
+    # return (196*9, 4); 
     bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside, fill=0)
     # num of total anchors * 4
     bbox_outside_weights = _unmap(bbox_outside_weights, total_anchors, inds_inside, fill=0)
@@ -1039,6 +1046,8 @@ rpn_bbox_outside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1 or 0----[1.0,1,
 
 
 def _unmap(data, count, inds, fill=0):
+    #labels: (num of total anchors,)
+    #total_anchors = 196*9; ins_inside: （num of inside anchors，4） ;
     """ Unmap a subset of item (data) back to the original set of items (of
     size count) """
     if len(data.shape) == 1:
@@ -1047,6 +1056,7 @@ def _unmap(data, count, inds, fill=0):
         ret[inds] = data
     else:
         ret = np.empty((count, ) + data.shape[1:], dtype=np.float32)
+        # example: np.empty((10,)+(4,0)): return shape of array: (10,4)
         ret.fill(fill)
         ret[inds, :] = data
     return ret
