@@ -24,7 +24,8 @@ class SolverWrapper(object):
     This wrapper gives us control over he snapshotting process, which we
     use to unnormalize the learned bounding-box regression weights.
     """
-
+    #SolverWrapper(sess, saver, network, imdb, roidb, output_dir, pretrained_model=pretrained_model)
+    
     def __init__(self, sess, saver, network, imdb, roidb, output_dir, pretrained_model=None):
         """Initialize the SolverWrapper."""
         self.net = network
@@ -34,7 +35,7 @@ class SolverWrapper(object):
         self.pretrained_model = pretrained_model
 
         print 'Computing bounding-box regression targets...'
-        if cfg.TRAIN.BBOX_REG:
+        if cfg.TRAIN.BBOX_REG: # True
             self.bbox_means, self.bbox_stds = rdl_roidb.add_bbox_regression_targets(roidb)
         print 'done'
 
@@ -171,13 +172,11 @@ class SolverWrapper(object):
         bbox_targets = self.net.get_output('roi-data')[2]
         bbox_inside_weights = self.net.get_output('roi-data')[3]
         bbox_outside_weights = self.net.get_output('roi-data')[4]
-
         smooth_l1 = self._modified_smooth_l1(1.0, bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
         loss_box = tf.reduce_mean(tf.reduce_sum(smooth_l1, reduction_indices=[1]))
         
         
         
-
         # final loss
         loss = cross_entropy + loss_box + rpn_cross_entropy + rpn_loss_box
         # optimizer and learning rate
@@ -187,6 +186,8 @@ class SolverWrapper(object):
         momentum = cfg.TRAIN.MOMENTUM
         train_op = tf.train.MomentumOptimizer(lr, momentum).minimize(loss, global_step=global_step)
 
+        
+        
         # iintialize variables
         sess.run(tf.global_variables_initializer())
         if self.pretrained_model is not None:
@@ -202,18 +203,18 @@ class SolverWrapper(object):
             """
             blobs['data']: [1,maxL,maxH,3]
             blobs['gt_boxes']:
-                 [[11,22,33,44,0]
-                  [22,33,44,55,2]
+                 [[11,22,33,44, 16]
+                  [22,33,44,55, 8]
                                  ]boxes +classes
             blobs['im_info']
             [[max_length, max_width, im_scale]]
-            im_scale: haw much tha original image has been multiplied
+            im_scale: 缩放比例
             """
 
             # Make one SGD update
             feed_dict={self.net.data: blobs['data'], self.net.im_info: blobs['im_info'], self.net.keep_prob: 0.5, \
                            self.net.gt_boxes: blobs['gt_boxes']}
-            #self.net.data: shape=[None, None, None, 3]
+            # self.net.data: shape=[None, None, None, 3]
 
             run_options = None
             run_metadata = None
@@ -309,17 +310,38 @@ def get_data_layer(roidb, num_classes):
 
 def filter_roidb(roidb):
     """Remove roidb entries that have no usable RoIs."""
-
+"""
+roidb[i](an image example i)(2 objects in picture:person,cat):
+    {
+    'boxes':
+    [[23,34,54,32],
+     [432,45,6,43]]
+    'gt_classes': 
+    [16,8] #the number corresponding to person and cat
+    'gt_overlaps':
+    (0 15)  1
+    (1,7)   1
+    'flipped':
+    False(or True)
+    seg_areas:
+    [432,53]
+    'image':image_path
+    'widthr': width of a image
+    'height': heigth of a image
+    'max_classes': [15, 7]
+    'max_overlaps': [1,1]
+"""
     def is_valid(entry):
         # Valid images have:
         #   (1) At least one foreground RoI OR
         #   (2) At least one background RoI
-        overlaps = entry['max_overlaps']
+        overlaps = entry['max_overlaps'] #[1,1]
         # find boxes with sufficient overlap
-        fg_inds = np.where(overlaps >= cfg.TRAIN.FG_THRESH)[0]
+        fg_inds = np.where(overlaps >= cfg.TRAIN.FG_THRESH)[0] # 0.5 return[0,1]
         # Select background RoIs as those within [BG_THRESH_LO, BG_THRESH_HI)
         bg_inds = np.where((overlaps < cfg.TRAIN.BG_THRESH_HI) &
                            (overlaps >= cfg.TRAIN.BG_THRESH_LO))[0]
+        # 0.1, 0.5 return [] vacuum
         # image is only valid if such boxes exist
         valid = len(fg_inds) > 0 or len(bg_inds) > 0
         return valid
@@ -333,8 +355,9 @@ def filter_roidb(roidb):
 
 
 def train_net(network, imdb, roidb, output_dir, pretrained_model=None, max_iters=40000):
+    # train_net(network, imdb, roidb, output_dir, pretrained_model=data/pretrain_model/VGG_imagenet.npy , max_iters=args.max_iters)
     """Train a Fast R-CNN network."""
-    roidb = filter_roidb(roidb)
+    roidb = filter_roidb(roidb) # barely no change
     saver = tf.train.Saver(max_to_keep=100)
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         sw = SolverWrapper(sess, saver, network, imdb, roidb, output_dir, pretrained_model=pretrained_model)
