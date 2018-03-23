@@ -1036,13 +1036,15 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
 
     return rpn_labels,rpn_bbox_targets,rpn_bbox_inside_weights,rpn_bbox_outside_weights
 """
-rpn_labels:(1,1,14*9,14) elem: 1,0,-1(sum:14*14*9) including 128(1),128(0)(how to choose is in paper),left are -1
-rpn_bbox_targets: 1, 9*4, 14, 14 elem: x move of center, y move of center, width transform , height transform
-                  (the inside boxes), the rest of boxes are [0 0 0 0]
-rpn_bbox_inside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1----[1,1,1,1]
-                  only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
-rpn_bbox_outside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1 or 0----[1.0,1,1,1]/
-                  only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
+        rpn_labels:(1,1,14*9,14) elem: 1,0,-1(sum:14*14*9) including 128(1),128(0)(how to choose is in paper),left are -1(random choice of 256 for eliminiting biases)
+                   256 of inside of them is the after-choose where the value 1 represent fg and the value
+                   0 represent bg; the rest of them is -1,which will be not considered
+        rpn_bbox_targets: 1, 9*4, 14, 14 elem: x move of center, y move of center, width transform , height transform(anchors relative to gt)
+                  (only the inside boxes), the rest of boxes are [0 0 0 0]
+        rpn_bbox_inside_weights: 1, 9*4, 14, 14 elem: the inside anchors are:[1,1,1,1] for left fg_anchors(labels == 1)
+                  (only the inside boxes), the rest of boxes are [0 0 0 0]
+        rpn_bbox_outside_weights: 1, 9*4, 14, 14 elem: the inside anchors are:[1/128,1/128,1/128,1/128] for left fg_bg_anchors(labels == 1 or 0)
+                  (only the inside boxes), the rest of boxes are [0 0 0 0]
 """
 
 
