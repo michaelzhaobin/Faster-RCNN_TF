@@ -981,17 +981,18 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
     labels = _unmap(labels, total_anchors, inds_inside, fill=-1)
     #labels: (num of total anchors（inside anchors）, )
     #total_anchors = 196*9; ins_inside: (num of inside anchors， ） 
-    #return （196*9，）；256 of them is the after-choose where the value 1 represent fg and the value
+    #return （196*9，）；256 of inside of them is the after-choose where the value 1 represent fg and the value
     #0 represent bg; the rest of them is -1,which will be not considered
     bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, fill=0)
-    # num of total anchors,4
-    # x move of center, y move of center, width transform , height transform
-    # return (196*9, 4); 
+    # bbox_targets: inside anchors, 4 x move of center, y move of center, width transform , height transform
+    # return (196*9, 4); the inside anchors are:(x move of center, y move of center, width transform , height transform)
+    # the rest of them are (0, 0, 0, 0)
     bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside, fill=0)
-    # num of total anchors * 4
+    # (inside anchors， 4)  
+    # return (196*9, 4); the inside anchors are:[1,1,1,1] for left fg_anchors(labels == 1) the rest of them are (0, 0, 0, 0)
     bbox_outside_weights = _unmap(bbox_outside_weights, total_anchors, inds_inside, fill=0)
-    # num of total anchors * 4
-
+    # (inside anchors， 4)  
+    # return (196*9, 4); the inside anchors are:[1/128,1/128,1/128,1/128] for left fg_bg_anchors(labels == 1 or 0) the rest of them are (0, 0, 0, 0)
     if DEBUG:
         #false
         print 'rpn: max max_overlap', np.max(max_overlaps)
@@ -1035,10 +1036,10 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
 
     return rpn_labels,rpn_bbox_targets,rpn_bbox_inside_weights,rpn_bbox_outside_weights
 """
-rpn_labels:(1,1,14*9,14) elem: 1,0,-1(sum:14*14*9) including 128(1),128(0),left are -1
+rpn_labels:(1,1,14*9,14) elem: 1,0,-1(sum:14*14*9) including 128(1),128(0)(how to choose is in paper),left are -1
 rpn_bbox_targets: 1, 9*4, 14, 14 elem: x move of center, y move of center, width transform , height transform
-                  only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
-rpn_bbox_inside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1----[1.0,1,1,1]
+                  (the inside boxes), the rest of boxes are [0 0 0 0]
+rpn_bbox_inside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1----[1,1,1,1]
                   only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
 rpn_bbox_outside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1 or 0----[1.0,1,1,1]/
                   only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
@@ -1049,7 +1050,7 @@ def _unmap(data, count, inds, fill=0):
     #labels: (num of total anchors,)
     #total_anchors = 196*9; ins_inside: （num of inside anchors，4） ;
     """ Unmap a subset of item (data) back to the original set of items (of
-    size count) """
+    size count """
     if len(data.shape) == 1:
         ret = np.empty((count, ), dtype=np.float32)
         ret.fill(fill)
