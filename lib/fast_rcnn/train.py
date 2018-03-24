@@ -89,24 +89,26 @@ class SolverWrapper(object):
             SmoothL1(x) = 0.5 * (sigma * x)^2,    if |x| < 1 / sigma^2
                           |x| - 0.5 / sigma^2,    otherwise
         """
-        sigma2 = sigma * sigma
+        sigma2 = sigma * sigma #9
 
         inside_mul = tf.multiply(bbox_inside_weights, tf.subtract(bbox_pred, bbox_targets))
-        #dot multiply; only let the anchor box of prop(box) = 1 exits, else are 0s
+        #dot multiply; 只让对应于fg_anchors（大约128个）的差值存在 ，其余的为0
 
         smooth_l1_sign = tf.cast(tf.less(tf.abs(inside_mul), 1.0 / sigma2), tf.float32)
-        #tf.less: Returns the truth value of (x < y) element-wise (tensor of bool)
-        # the elems of inside_mul which is < 1/9 are 1
-        # the elems of inside_mul which is < 1/9 are 0
+        # tf.less: Returns the truth value of (x < y) element-wise (tensor of bool)
+        # the elems of inside_mul which is < 1/9 are 1 (some of fg anchors（<1/9） and all others)
+        # the elems of inside_mul which is < 1/9 are 0 （only in fg）
         smooth_l1_option1 = tf.multiply(tf.multiply(inside_mul, inside_mul), 0.5 * sigma2)
+        # 只求128个option1（0.5 * (3 * x)^2），别的都为0
         smooth_l1_option2 = tf.subtract(tf.abs(inside_mul), 0.5 / sigma2)
-        smooth_l1_result = tf.add(tf.multiply(smooth_l1_option1, smooth_l1_sign),
-                                  tf.multiply(smooth_l1_option2, tf.abs(tf.subtract(smooth_l1_sign, 1.0))))
+        # 求128个option1（|x| - 0.5 / 3^2），别的都为-0.5/9
+        smooth_l1_result = tf.add(tf.multiply(smooth_l1_option1, smooth_l1_sign), # 求128， 别的都为0
+                                  tf.multiply(smooth_l1_option2, tf.abs(tf.subtract(smooth_l1_sign, 1.0)))) #求128别的都为0
 
         outside_mul = tf.multiply(bbox_outside_weights, smooth_l1_result)
 
         return outside_mul
-
+        #只求128
 
     def train_model(self, sess, max_iters):
         """Network training loop."""
@@ -122,21 +124,25 @@ class SolverWrapper(object):
         # 9: num of anchors
         rpn_label = tf.reshape(self.net.get_output('rpn-data')[0],[-1])
         """
-        rpn_labels:(1,1,14*9,14) elem: 1,0,-1(sum:14*14*9) including 128(1),128(0),left are -1(random choice of 256 for eliminiting biases)
-        rpn_bbox_targets: 1, 9*4, 14, 14 elem: x move of center, y move of center, width transform , height transform
-                  only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
-        rpn_bbox_inside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1----[1.0,1,1,1]
-                  only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
-        rpn_bbox_outside_weights: 1, 9*4, 14, 14 elem: when rpn_lables=1 or 0----[1.0,1,1,1]/
-                  only the inside boxes are non-zero, the rest of boxes are [0 0 0 0]
+        rpn_labels:(1,1,14*9,14) elem: 1,0,-1(sum:14*14*9) including 128(1)(fg_anchors),128(0)(bg_anchors)(how to choose is in paper),left are -1(random choice of 256 for eliminiting biases)
+                   256 of inside of them is the after-choose where the value 1 represent fg_anchors and the value
+                   0 represent bg_anchors; the rest of them is -1,which will be not considered
+             how to choose: anchor交叠大于0.7某个阈值为1，交叠小于0.5为0，多了的随机选256个
+        rpn_bbox_targets: 1, 9*4, 14, 14 elem: x move of center, y move of center, width transform , height transform(anchors relative to gt)
+                  (only the inside boxes,but almost the same size as all anchors), the rest of boxes are [0 0 0 0]
+        rpn_bbox_inside_weights: 1, 9*4, 14, 14 elem: the inside anchors are:[1,1,1,1] for left fg_anchors(labels == 1， around 128 个)
+                  (only the inside boxes), the rest of boxes are [0 0 0 0]
+        rpn_bbox_outside_weights: 1, 9*4, 14, 14 elem: the inside anchors are:[1/128,1/128,1/128,1/128] for left fg_bg_anchors(labels == 1 or 0， 256个)
+                  (only the inside boxes), the rest of boxes are [0 0 0 0]
         """
         #return (14*14*9,)
         rpn_cls_score = tf.reshape(tf.gather(rpn_cls_score,tf.where(tf.not_equal(rpn_label,-1))),[-1,2])
         #tf.not_equal: 返回逐个元素的布尔值; tf.where: 找出tensor里所有True值的index; 
         # tf.gather(params, indices, name = None): 根据indices索引,从params中取对应索引的值,然后返回
-        # find the rows in rpn_cls_score which is useful
+        # find the rows in rpn_cls_score whose indexes are the indexes of the after-choose(1 and 0) anchors 
         rpn_label = tf.reshape(tf.gather(rpn_label,tf.where(tf.not_equal(rpn_label,-1))),[-1])
         # find the rows in rpn_label which is useful
+        #***********************对fg_bg_anchors（around 258）和索引对应的预测的框预测有没有物体的预测求损失***********************
         rpn_cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=rpn_cls_score, labels=rpn_label))
         """第一个参数logits：就是神经网络最后一层的输出，如果有batch的话，它的大小就是[batchsize，num_classes]，单样本的话，大小就是num_classes
         第二个参数labels：实际的标签，大小同上
@@ -153,10 +159,20 @@ class SolverWrapper(object):
         # rpn-data[1]: same as former-----[1,14,14,36]
         rpn_bbox_outside_weights = tf.transpose(self.net.get_output('rpn-data')[3],[0,2,3,1])
         rpn_smooth_l1 = self._modified_smooth_l1(3.0, rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights)
+        # **********************只对fg_anchors（around128）和索引对应的预测的框坐标求损失。*************************
         rpn_loss_box = tf.reduce_mean(tf.reduce_sum(rpn_smooth_l1, reduction_indices=[1, 2, 3]))
- 
-
+        #reduce_sum() 就是求和，由于求和的对象是tensor，所以是沿着tensor的某些维度求和。reduction_indices是指沿tensor的哪些维度求和。
+        """
+            在这个过程中，我们先选出128个和gt-box交叠很大的anchors，在选出128个交叠很小的anchors，并求出他们分别的（dx，dy，dw，dh）和有无物体。
+        然后神经网络前向传播的得到256 anchors 对应的index的结果，求出（dx，dy，dw，dh）和有无物体的损失，并梯度下降
+           经过多次rpn损失函数的梯度下降过程之后，神经网络就会趋向于，在一张陌生图片的fg物体所最大对应的（我们多次利用这里的anchor box）
+        还有其中的最大交叠的一个anchor对应的rpn-bbox-pred中预测出正确的（相对于此anchor的dx,dy,dw,dh）,rpn-cls-score-reshape预测出正确的有无物体
+        这里rpn-bbox-pred和rpn-cls-score-reshape对应着一个相对一个anchor的一个框。
+          应该会产生很多这样的预测效果良好的框，下面再进行筛选
+        """
        
+    
+    
         # R-CNN classification loss
         cls_score = self.net.get_output('cls_score')
         # (num of final left proposals, 21)
