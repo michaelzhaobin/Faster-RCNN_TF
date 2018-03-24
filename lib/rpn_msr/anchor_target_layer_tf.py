@@ -1041,9 +1041,9 @@ array([[  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
                    0 represent bg_anchors; the rest of them is -1,which will be not considered
         rpn_bbox_targets: 1, 9*4, 14, 14 elem: x move of center, y move of center, width transform , height transform(anchors relative to gt)
                   (only the inside boxes), the rest of boxes are [0 0 0 0]
-        rpn_bbox_inside_weights: 1, 9*4, 14, 14 elem: the inside anchors are:[1,1,1,1] for left fg_anchors(labels == 1)
-                  (only the inside boxes), the rest of boxes are [0 0 0 0]
-        rpn_bbox_outside_weights: 1, 9*4, 14, 14 elem: the inside anchors are:[1/128,1/128,1/128,1/128] for left fg_bg_anchors(labels == 1 or 0)
+        rpn_bbox_inside_weights: 1, 9*4, 14, 14 elem: the inside anchors are:[1,1,1,1] for left fg_anchors(labels == 1, around 128 个)
+                  (only the inside boxes), the all rest of boxes are [0 0 0 0]
+        rpn_bbox_outside_weights: 1, 9*4, 14, 14 elem: the inside anchors are:[1/128,1/128,1/128,1/128] for left fg_bg_anchors(labels == 1 or 0，256个)
                   (only the inside boxes), the rest of boxes are [0 0 0 0]
 """
 
