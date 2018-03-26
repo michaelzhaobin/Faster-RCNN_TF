@@ -179,10 +179,10 @@ class Network(object):
             input[0] = input[0][0]
         return tf.reshape(tf.py_func(proposal_layer_py,[input[0],input[1],input[2], cfg_key, _feat_stride, anchor_scales], [tf.float32]),[-1,5],name =name)
     """
-    return (num of left proposal,*5)
-    blob[:,0]==0
-    blob[:,1:5]: x1,y1,x2,y2
-    """
+return (num of left proposal(around 2000),*5)
+blob[:,0]==0
+blob[:,1:5]: x1,y1,x2,y2(in the original image)
+"""
 
     @layer
     # input: [1,14,14,18]('rpn_cls_score'); [[11,22,33,44,0],[22,33,44,55,2]]boxes +classes('gt_boxes'); 
