@@ -98,13 +98,14 @@ class VGGnet_train(Network):
         # Loss of rpn_cls & rpn_boxes
         (self.feed('rpn_conv/3x3')
              .conv(1,1,len(anchor_scales)*3*4, 1, 1, padding='VALID', relu = False, name='rpn_bbox_pred')) #<<<<<<<<<<<<<<<<<
-         #output: 14*14*36 (9 anchors * 4) [1,14,14,36](dx,dx,dw,dh)
+        # output: 14*14*36 (9 anchors * 4) [1,14,14,36](dx,dx,dw,dh)
+        # 该结果是相对于相应anchors的dx,dx,dw,dh
 
         #========= RoI Proposal ============
         (self.feed('rpn_cls_score')
              .reshape_layer(2,name = 'rpn_cls_score_reshape')#<<<<<<<<<<<<<<<<<<
         # output: [1, 126(9*14),14,2]
-             .softmax(name='rpn_cls_prob'))
+             .softmax(name='rpn_cls_prob')
         # output: [1, 126(9*14),14,2]
 
         (self.feed('rpn_cls_prob')
@@ -113,13 +114,13 @@ class VGGnet_train(Network):
        
 
         (self.feed('rpn_cls_prob_reshape','rpn_bbox_pred','im_info')
-             .proposal_layer(_feat_stride, anchor_scales, 'TRAIN',name = 'rpn_rois')) 
-        # choose pred_box by itself
+             .proposal_layer(_feat_stride, anchor_scales, 'TRAIN',name = 'rpn_rois')))
+        # choose pred_box by itself； im_info: [[max_length, max_width, im_scale]]
+        # 选择在原图内部的---->nms
         """
-        choose boxes
-        return (num of left proposal,*5)
+        return (num of left proposal(around 2000),*5)
         blob[:,0]==0
-        blob[:,1:5]: x1,y1,x2,y2
+        blob[:,1:5]: x1,y1,x2,y2(in the original image)
         """
 
         #'gt_boxes': [[11,22,33,44,0],[22,33,44,55,2]]boxes +classes;
