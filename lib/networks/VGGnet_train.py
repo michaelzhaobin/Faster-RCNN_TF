@@ -115,7 +115,8 @@ class VGGnet_train(Network):
 
         (self.feed('rpn_cls_prob_reshape','rpn_bbox_pred','im_info')
              .proposal_layer(_feat_stride, anchor_scales, 'TRAIN',name = 'rpn_rois')))
-        # choose pred_box by itself； im_info: [[max_length, max_width, im_scale]]
+        # choose pred_box by totally the predicted box coordinates and scores itself； 
+        # im_info: [[max_length, max_width, im_scale]]
         # 选择在原图内部的---->nms
         """
         return (num of left proposal(around 2000),*5)
@@ -123,7 +124,7 @@ class VGGnet_train(Network):
         blob[:,1:5]: x1,y1,x2,y2(in the original image)
         """
 
-        #'gt_boxes': [[11,22,33,44,0],[22,33,44,55,2]]boxes +classes;
+        #'gt_boxes': [[11,22,33,44,16],[22,33,44,55,8]]boxes +classes;
         (self.feed('rpn_rois','gt_boxes')
              .proposal_target_layer(n_classes,name = 'roi-data'))
         #choose pred_box by itself and the overlaps with the gt_boxes
