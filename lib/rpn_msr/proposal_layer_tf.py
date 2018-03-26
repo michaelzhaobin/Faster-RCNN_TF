@@ -19,7 +19,8 @@ DEBUG = False
 Outputs object detection proposals by applying estimated bounding-box
 transformations to a set of regular boxes (called "anchors").
 """
-#input: 'rpn_cls_prob_reshape'(1,14,14,18),'rpn_bbox_pred'(1,14,14,36)(dx,dx,dw,dh),'im_info': [[max_length, max_width, im_scale]]
+#input: 'rpn_cls_prob_reshape'(1,14,14,18)(2 score values after softmax),'rpn_bbox_pred'(1,14,14,36)(dx,dx,dw,dh),
+#'im_info': [[max_length, max_width, im_scale]]
 # _feat_stride:[16,];  anchor_scales:[8,16,32]; cfg_key = 'TRAIN'
 def proposal_layer(rpn_cls_prob_reshape,rpn_bbox_pred,im_info,cfg_key,_feat_stride = [16,],anchor_scales = [8, 16, 32]):
     # Algorithm:
@@ -37,7 +38,7 @@ def proposal_layer(rpn_cls_prob_reshape,rpn_bbox_pred,im_info,cfg_key,_feat_stri
     #layer_params = yaml.load(self.param_str_)
     _anchors = generate_anchors(scales=np.array(anchor_scales)) # return 9*4 anchors coordinates
     _num_anchors = _anchors.shape[0]
-    rpn_cls_prob_reshape = np.transpose(rpn_cls_prob_reshape,[0,3,1,2]) #------(1,18,14,14)
+    rpn_cls_prob_reshape = np.transpose(rpn_cls_prob_reshape,[0,3,1,2]) #2 score values after softmax------(1,18,14,14)
     rpn_bbox_pred = np.transpose(rpn_bbox_pred,[0,3,1,2]) #------(1,36,14,14)
     #rpn_cls_prob_reshape = np.transpose(np.reshape(rpn_cls_prob_reshape,[1,rpn_cls_prob_reshape.shape[0],rpn_cls_prob_reshape.shape[1],rpn_cls_prob_reshape.shape[2]]),[0,3,2,1])
     #rpn_bbox_pred = np.transpose(rpn_bbox_pred,[0,3,2,1])
@@ -154,7 +155,8 @@ def proposal_layer(rpn_cls_prob_reshape,rpn_bbox_pred,im_info,cfg_key,_feat_stri
 
     # Convert anchors into proposals via bbox transformations
     proposals = bbox_transform_inv(anchors, bbox_deltas)
-    # generate the prodicted box maped in original image (14*14*9, 4), only inside anchors
+    # generate the prodicted box（x1,y1,x2,y2） maped in original image (14*14*9, 4), only inside anchors, 
+    # 因为bbox_deltas(dx,dy,dw,dh)是相对于相应anchors（x1,y1,x2,y2）的偏移
 
     # 2. clip predicted boxes to image boundaries
     proposals = clip_boxes(proposals, im_info[:2])
@@ -170,6 +172,7 @@ def proposal_layer(rpn_cls_prob_reshape,rpn_bbox_pred,im_info,cfg_key,_feat_stri
     # 5. take top pre_nms_topN (e.g. 6000)
     order = scores.ravel().argsort()[::-1]
     if pre_nms_topN > 0:
+        #12000
         order = order[:pre_nms_topN]
     proposals = proposals[order, :] #len(order)*4
     scores = scores[order] #len(order)
@@ -178,21 +181,22 @@ def proposal_layer(rpn_cls_prob_reshape,rpn_bbox_pred,im_info,cfg_key,_feat_stri
     # 7. take after_nms_topN (e.g. 300)
     # 8. return the top proposals (-> RoIs top)
     keep = nms(np.hstack((proposals, scores)), nms_thresh)
-    # *5 0.7
+    # nms_thresh: 0.7
     if post_nms_topN > 0:
+        #2000
         keep = keep[:post_nms_topN]
-    proposals = proposals[keep, :] #300
+    proposals = proposals[keep, :] #<=2000
     scores = scores[keep]
     # Output rois blob
     # Our RPN implementation only supports a single input image, so all
     # batch inds are 0
-    batch_inds = np.zeros((proposals.shape[0], 1), dtype=np.float32)
+    batch_inds = np.zeros((proposals.shape[0], 1), dtype=np.float32) #(2000, 1)
     blob = np.hstack((batch_inds, proposals.astype(np.float32, copy=False)))
     return blob
 """
-return (num of left proposal,*5)
+return (num of left proposal(around 2000),*5)
 blob[:,0]==0
-blob[:,1:5]: x1,y1,x2,y2
+blob[:,1:5]: x1,y1,x2,y2(in the original image)
 """
     #top[0].reshape(*(blob.shape))
     #top[0].data[...] = blob
