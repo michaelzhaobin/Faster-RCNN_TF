@@ -150,6 +150,7 @@ class SolverWrapper(object):
         """
 
        
+    
         # bounding box regression L1 loss
         rpn_bbox_pred = self.net.get_output('rpn_bbox_pred')
         # rpn_bbox_pred:14*14*36 (9 anchors * 4) [1,14,14,36]
