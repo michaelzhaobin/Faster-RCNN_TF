@@ -48,7 +48,7 @@ def proposal_target_layer(rpn_rois, gt_boxes,_num_classes):
 
     num_images = 1
     rois_per_image = cfg.TRAIN.BATCH_SIZE / num_imagea #128
-    fg_rois_per_image = np.round(cfg.TRAIN.FG_FRACTION * rois_per_image) # 0.25*128 = 42
+    fg_rois_per_image = np.round(cfg.TRAIN.FG_FRACTION * rois_per_image) # 0.25*128 = 32
 
     # Sample rois with classification labels and bounding box regression
     # targets
@@ -92,8 +92,8 @@ def proposal_target_layer(rpn_rois, gt_boxes,_num_classes):
 
     return rois,labels,bbox_targets,bbox_inside_weights,bbox_outside_weights
 """
-(1) rois: (num of finally left proposal, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
-          [0:fg_rois_per_this_image]: the left foregound; [fg_rois_per_this_image:]:the left background
+(1) rois: (num of finally left proposal（128）, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
+          [0:fg_rois_per_this_image（32）]: the left foregound; [fg_rois_per_this_image（32）:]:the left background
 (2) the final classes of the ground truth correspounding to per pred box [num of finally left proposal,1] 
         for ex: [[9],[15],[15],[15],[9],[9]....]
 
@@ -173,7 +173,7 @@ def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_clas
     """
     """
     all_rois: (num of left proposal, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
-    gt_boxes: [[11,22,33,44,0],[22,33,44,55,2]]boxes +classes;
+    gt_boxes: [[11,22,33,44,15],[22,33,44,55,9]]boxes +classes;
     fg_rois_per_image: 42
     _num_classes: 21
     """
