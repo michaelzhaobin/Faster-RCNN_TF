@@ -19,6 +19,7 @@ import tensorflow as tf
 #__sets['VGGnet_test'] = networks.VGGnet_test()
 
 #name: VGGnet_train
+#testing: VGGnet_test
 def get_network(name):
     """Get a network by name."""
     #if not __sets.has_key(name):
