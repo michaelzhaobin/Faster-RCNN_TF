@@ -232,17 +232,17 @@ blob[:,1:5]: x1,y1,x2,y2(in the original image)
 
            
             return rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights
-            """
-(1) rois: (num of finally left proposal, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
-          [0:fg_rois_per_this_image]: the left foregound; [fg_rois_per_this_image:]:the left background
-(2) the final classes of the ground truth correspounding to per pred box [num of finally left proposal,1] 
-        for ex: [[9],[15],[15],[15],[9],[9]....] 
-        (num of fg_box: ) = 0
+"""
+(1) rois: (num of finally left proposal（128）, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
+          [0:fg_rois_per_this_image（32）]: the left foregound; [fg_rois_per_this_image（32）:]:the left background
+(2) the final classes of the ground truth correspounding to per pred box [num of finally left proposal（128）,1] 
+        for ex: [[9],[15],[15],[15],[9],[9]....]
 
 (3): num of finally left proposals * 4*21: [dx,dy,dw,dh] of 1 class in 21
 (4): num of finally left proposals * 4*21: [1, 1, 1, 1] of 1 class
 (5): num of finally left proposals * 4*21: [true,true,true,true] of 1 class in 21; [false, false, false, false] in left of the classes
 """
+
 
 
     @layer
