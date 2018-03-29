@@ -97,7 +97,7 @@ def proposal_target_layer(rpn_rois, gt_boxes,_num_classes):
 (2) the final classes of the ground truth correspounding to per pred box [num of finally left proposal,1] 
         for ex: [[9],[15],[15],[15],[9],[9]....]
 
-(3): num of finally left proposals * 4*21: [dx,dy,dw,dh] of 1 class in 21
+(3): num of finally left proposals * 4*21: [dx,dy,dw,dh]（reative to gt） of 1 class in 21
 (4): num of finally left proposals * 4*21: [1, 1, 1, 1] of 1 class
 (5): num of finally left proposals * 4*21: [true,true,true,true] of 1 class in 21; [false, false, false, false] in left of the classes
 """
