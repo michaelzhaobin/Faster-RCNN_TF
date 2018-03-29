@@ -44,6 +44,26 @@ def prepare_roidb(imdb):
         assert all(max_classes[nonzero_inds] != 0)
 
 def add_bbox_regression_targets(roidb):
+"""imdb.roidb[i](an image example i)(2 objects in picture:person,cat):
+    {
+    'boxes':
+    [[23,34,54,32],
+     [432,45,6,43]]
+    'gt_classes': 
+    [16,8] #the number corresponding to person and cat
+    'gt_overlaps':
+    (0 15)  1
+    (1,7)   1
+    'flipped':
+    False(or True)
+    seg_areas:
+    [432,53]
+    'image':image_path
+    'widthr': width of a image
+    'height': heigth of a image
+    'max_classes': [15, 7]
+    'max_overlaps': [1,1]
+"""
     """Add information needed to train bounding-box regressors."""
     assert len(roidb) > 0
     assert 'max_classes' in roidb[0], 'Did you call prepare_roidb first?'
@@ -53,8 +73,10 @@ def add_bbox_regression_targets(roidb):
     num_classes = roidb[0]['gt_overlaps'].shape[1]
     for im_i in xrange(num_images):
         rois = roidb[im_i]['boxes']
-        max_overlaps = roidb[im_i]['max_overlaps']
-        max_classes = roidb[im_i]['max_classes']
+        """[[23,34,54,32],
+            [432,45,6,43]]"""
+        max_overlaps = roidb[im_i]['max_overlaps'] #[1, 1]
+        max_classes = roidb[im_i]['max_classes'] #[15, 7]
         roidb[im_i]['bbox_targets'] = \
                 _compute_targets(rois, max_overlaps, max_classes)
 
@@ -107,20 +129,23 @@ def add_bbox_regression_targets(roidb):
     return means.ravel(), stds.ravel()
 
 def _compute_targets(rois, overlaps, labels):
+    """[[23,34,54,32],     [1, 1]  [15, 7]
+        [432,45,6,43]]"""
     """Compute bounding-box regression targets for an image."""
     # Indices of ground-truth ROIs
-    gt_inds = np.where(overlaps == 1)[0]
+    gt_inds = np.where(overlaps == 1)[0] #[0,1]
     if len(gt_inds) == 0:
         # Bail if the image has no ground-truth ROIs
         return np.zeros((rois.shape[0], 5), dtype=np.float32)
     # Indices of examples for which we try to make predictions
-    ex_inds = np.where(overlaps >= cfg.TRAIN.BBOX_THRESH)[0]
+    ex_inds = np.where(overlaps >= cfg.TRAIN.BBOX_THRESH)[0] #[0,1]
 
     # Get IoU overlap between each ex ROI and gt ROI
     ex_gt_overlaps = bbox_overlaps(
         np.ascontiguousarray(rois[ex_inds, :], dtype=np.float),
         np.ascontiguousarray(rois[gt_inds, :], dtype=np.float))
-
+    """[[1,1]
+        [1,1]]"""
     # Find which gt ROI each ex ROI has max overlap with:
     # this will be the ex ROI's gt target
     gt_assignment = ex_gt_overlaps.argmax(axis=1)
