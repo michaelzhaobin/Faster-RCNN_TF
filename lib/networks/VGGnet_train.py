@@ -133,8 +133,7 @@ class VGGnet_train(Network):
           [0:fg_rois_per_this_image]: the left foregound; [fg_rois_per_this_image:]:the left background
 (2) the final classes of the ground truth correspounding to per pred box [num of finally left proposal,1] 
         for ex: [[9],[15],[15],[15],[9],[9]....]
-
-(3): num of finally left proposals * 4*21: [dx,dy,dw,dh] of 1 class in 21
+(3): num of finally left proposals * 4*21: [dx,dy,dw,dh](relative to gt) of 1 class in 21
 (4): num of finally left proposals * 4*21: [1, 1, 1, 1] of 1 class
 (5): num of finally left proposals * 4*21: [true,true,true,true] of 1 class in 21; [false, false, false, false] in left of the classes
 """
@@ -143,6 +142,7 @@ class VGGnet_train(Network):
         #========= RCNN ============
         (self.feed('conv5_3', 'roi-data')
              .roi_pool(7, 7, 1.0/16, name='pool_5')
+         # 主要用roi_data[0]
          # output: (num_rois, h, w, channels)  around(42, 7, 7, 512)
              .fc(4096, name='fc6')
          # num of left proposals * 4096
