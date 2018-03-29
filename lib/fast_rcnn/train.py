@@ -67,15 +67,15 @@ class SolverWrapper(object):
             os.makedirs(self.output_dir)
 
         infix = ('_' + cfg.TRAIN.SNAPSHOT_INFIX
-                 if cfg.TRAIN.SNAPSHOT_INFIX != '' else '')
+                 if cfg.TRAIN.SNAPSHOT_INFIX != '' else '') # SNAPSHOT_INFIX:' '
         filename = (cfg.TRAIN.SNAPSHOT_PREFIX + infix +
-                    '_iter_{:d}'.format(iter+1) + '.ckpt')
+                    '_iter_{:d}'.format(iter+1) + '.ckpt') # 'VGGnet_fast_rcnn'
         filename = os.path.join(self.output_dir, filename)
 
         self.saver.save(sess, filename)
         print 'Wrote snapshot to: {:s}'.format(filename)
 
-        if cfg.TRAIN.BBOX_REG and net.layers.has_key('bbox_pred'):
+        if cfg.TRAIN.BBOX_REG and net.layers.has_key('bbox_pred'): # true；
             with tf.variable_scope('bbox_pred', reuse=True):
                 # restore net to original state
                 sess.run(net.bbox_weights_assign, feed_dict={net.bbox_weights: orig_0})
@@ -200,6 +200,8 @@ class SolverWrapper(object):
         global_step = tf.Variable(0, trainable=False)
         lr = tf.train.exponential_decay(cfg.TRAIN.LEARNING_RATE, global_step,
                                         cfg.TRAIN.STEPSIZE, 0.1, staircase=True)
+        # decayed_learning_rate=learining_rate*decay_rate^(global_step/decay_steps)  
+        #decay_rate: 0.1
         momentum = cfg.TRAIN.MOMENTUM
         train_op = tf.train.MomentumOptimizer(lr, momentum).minimize(loss, global_step=global_step)
 
@@ -215,6 +217,7 @@ class SolverWrapper(object):
         last_snapshot_iter = -1
         timer = Timer()
         for iter in range(max_iters):
+            # 70000 大约一共有10000张图片
             # get one batch
             blobs = data_layer.forward()
             """
