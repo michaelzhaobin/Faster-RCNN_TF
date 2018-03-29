@@ -178,7 +178,8 @@ class SolverWrapper(object):
         cls_score = self.net.get_output('cls_score')
         # (num of final left proposals, 21)
         label = tf.reshape(self.net.get_output('roi-data')[1],[-1])
-        # (num of final left proposals,)
+        #the final classes of the ground truth correspounding to per pred box [num of finally left proposal,1] 
+        #for ex: [[9],[15],[15],[15],[9],[9]....]
         cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=cls_score, labels=label))
         # cls_score: (n)
 
@@ -187,8 +188,11 @@ class SolverWrapper(object):
         # bounding box regression L1 loss
         bbox_pred = self.net.get_output('bbox_pred')
         bbox_targets = self.net.get_output('roi-data')[2]
+        # num of finally left proposals * 4*21: [dx,dy,dw,dh](relative to gt, 重要) of 1 class in 21
         bbox_inside_weights = self.net.get_output('roi-data')[3]
+        # num of finally left proposals * 4*21: [1, 1, 1, 1] of 1 class in 21 classes
         bbox_outside_weights = self.net.get_output('roi-data')[4]
+        # num of finally left proposals * 4*21: [true,true,true,true] of 1 class in 21; [false, false, false, false] in left of the classes
         smooth_l1 = self._modified_smooth_l1(1.0, bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
         loss_box = tf.reduce_mean(tf.reduce_sum(smooth_l1, reduction_indices=[1]))
         
