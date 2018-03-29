@@ -108,7 +108,7 @@ roidb[i](an image example i)(2 objects in picture:person,cat):
 """
 
     output_dir = get_output_dir(imdb, None)
-    ##./output/default/voc_2017_trainval
+    ##./output/default/voc_2017_trainval; where the log file save
     print 'Output will be saved to `{:s}`'.format(output_dir)
 
     device_name = '/{}:{:d}'.format(args.device,args.device_id)
