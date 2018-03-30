@@ -23,13 +23,17 @@ import pdb
 
 class pascal_voc(imdb):
     #training: pascal_voc(trainval, 2007)
+    #test： pascal_voc(test, 2007)
     def __init__(self, image_set, year, devkit_path=None):
         imdb.__init__(self, 'voc_' + year + '_' + image_set)
         # training: voc_2007_trainval
+        # testing: voc_2007_test
         self._year = year
         # training: 2007
+        # testing： 2007
         self._image_set = image_set
         # training: trainval
+        # testin: test
         self._devkit_path = self._get_default_path() if devkit_path is None \
                             else devkit_path
         # data/VOCdevkit2007
