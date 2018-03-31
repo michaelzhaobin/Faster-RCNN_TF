@@ -28,6 +28,7 @@ def _get_image_blob(im):
     """
     im_orig = im.astype(np.float32, copy=True)
     im_orig -= cfg.PIXEL_MEANS
+    #平均化
 
     im_shape = im_orig.shape
     im_size_min = np.min(im_shape[0:2])
@@ -37,6 +38,7 @@ def _get_image_blob(im):
     im_scale_factors = []
 
     for target_size in cfg.TEST.SCALES:
+        #cfg.TEST.SCALES： （600，）
         im_scale = float(target_size) / float(im_size_min)
         # Prevent the biggest axis from being more than MAX_SIZE
         if np.round(im_scale * im_size_max) > cfg.TEST.MAX_SIZE:
@@ -50,6 +52,9 @@ def _get_image_blob(im):
     blob = im_list_to_blob(processed_ims)
 
     return blob, np.array(im_scale_factors)
+"""(1) (1, w, h, 3)
+(2) [缩放系数，]
+"""
 
 def _get_rois_blob(im_rois, im_scale_factors):
     """Converts RoIs into network inputs.
@@ -107,7 +112,10 @@ def _get_blobs(im, rois):
             blobs['rois'] = _get_rois_blob(rois, cfg.TEST.SCALES_BASE)
 
     return blobs, im_scale_factors
-
+"""
+(1) blobs: blobs['data']: (1, w, h, 3); blobs['rois'] = None
+(2) [缩放系数，]
+"""
 def _clip_boxes(boxes, im_shape):
     """Clip boxes to image boundaries."""
     # x1 >= 0
@@ -143,7 +151,10 @@ def im_detect(sess, net, im, boxes=None):
     """
 
     blobs, im_scales = _get_blobs(im, boxes)
-
+    """
+    (1) blobs: blobs['data']: (1, w, h, 3); blobs['rois'] = None
+    (2) [缩放系数，]
+    """
     # When mapping from image ROIs to feature map ROIs, there's some aliasing
     # (some distinct image ROIs get mapped to the same feature ROI).
     # Here, we identify duplicate feature ROIs, so we only compute features
@@ -161,10 +172,14 @@ def im_detect(sess, net, im, boxes=None):
         blobs['im_info'] = np.array(
             [[im_blob.shape[1], im_blob.shape[2], im_scales[0]]],
             dtype=np.float32)
+    """
+    (1) blobs: blobs['data']: (1, w, h, 3); blobs['rois'] = None； blobs['im_info'] = [[w, h, [缩放系数，]]]
+    (2) [缩放系数，]
+    """
     # forward pass
     if cfg.TEST.HAS_RPN:
         feed_dict={net.data: blobs['data'], net.im_info: blobs['im_info'], net.keep_prob: 1.0}
-        #data: [1,maxL,maxH,3];'im_info': [[max_length, max_width, im_scale(the scale of enlargement or shrink)]]
+        #data: [1,maxL,maxH,3];'im_info': [[w, h, [缩放系数，]]]
     else:
         feed_dict={net.data: blobs['data'], net.rois: blobs['rois'], net.keep_prob: 1.0}
 
@@ -179,8 +194,8 @@ def im_detect(sess, net, im, boxes=None):
                                                     feed_dict=feed_dict,
                                                     options=run_options,
                                                     run_metadata=run_metadata)
-    # cls_score: (num of final left images,21)(before softmax); cls_prob: (num of final left images,21)(after softmax)
-    # bbox_pred: (num of final left boxes, 21*4); rois: (num of left proposal,*5) blob[:,0]==0 blob[:,1:5]: x1,y1,x2,y2
+    # cls_score: (num of final left proposals,21)(before softmax); cls_prob: (num of final left proposals,21)(after softmax)
+    # bbox_pred: (num of final left boxes, 21*4); rois（alter proposal layer）: (num of left proposal,*5) blob[:,0]==0 blob[:,1:5]: x1,y1,x2,y2
 
     if cfg.TEST.HAS_RPN:
         assert len(im_scales) == 1, "Only single-image batch implemented"
@@ -196,7 +211,7 @@ def im_detect(sess, net, im, boxes=None):
     else:
         # use softmax estimated probabilities
         scores = cls_prob
-    #cls_prob: (num of final left images,21)(after softmax)
+    #cls_prob: (num of final left proposal,21)(after softmax)
 
     if cfg.TEST.BBOX_REG:
         #True
@@ -205,7 +220,7 @@ def im_detect(sess, net, im, boxes=None):
         # (num of final left boxes, 21*4)
         pred_boxes = bbox_transform_inv(boxes, box_deltas)
         # middle result(x1,y1,x2,y2); final result (dx,dy,dw,dh) relative to rois.
-        # return (*, 4) [x1,y1,x2,y3]
+        # return (*, 4) [x1,y1,x2,y3] (in the original images)
         pred_boxes = _clip_boxes(pred_boxes, im.shape)
     else:
         # Simply repeat the boxes, once for each class
@@ -224,8 +239,8 @@ def im_detect(sess, net, im, boxes=None):
         trace_file.close()
 
     return scores, pred_boxes
-# (1) cls_prob: (num of final left images,21)(after softmax)
-# (2) (*, 4) [x1,y1,x2,y3]
+# (1) cls_prob: (num of final left proposals(around 2000),21)(after softmax)
+# (2) (num of final left proposals, 4) [x1,y1,x2,y3] (in the original images)
 
 
 def vis_detections(im, class_name, dets, thresh=0.8):
@@ -290,15 +305,52 @@ def test_net(sess, net, imdb, weights_filename , max_per_image=300, thresh=0.05,
     #    all_boxes[cls][image] = N x 5 array of detections in
     #    (x1, y1, x2, y2, score)
     all_boxes = [[[] for _ in xrange(num_images)]
-                 for _ in xrange(imdb.num_classes)]
-
+                 for _ in xrange(imdb.num_classes)] #shape: (num_classes, num_images, )
+    
     output_dir = get_output_dir(imdb, weights_filename)
-    # timers
+    # weights_filename: faster_rcnn_end2end_VGG16_${EXTRA_ARGS_SLUG}
+    # ./output/default/voc_2017_trainval/faster_rcnn_end2end_VGG16_${EXTRA_ARGS_SLUG}
     _t = {'im_detect' : Timer(), 'misc' : Timer()}
 
     if not cfg.TEST.HAS_RPN:
+        # True
         roidb = imdb.roidb
-
+    """
+    the result(an example of all images(a list))(2 objects in picture:person,cat):
+    {
+    'boxes':
+    [[23,34,54,32],
+     [432,45,6,43]]
+    'gt_classes': 
+    [16,8] #the number corresponding to person and cat
+    'gt_overlaps':
+    (0, 15)  1
+    (1, 7)   1
+    #num_of_classes, 
+    'flipped':
+    False
+    seg_areas:
+    [432,53]
+    #areas of boxes
+    }
+    if have flipped:
+    {
+    'boxes':
+    [[23,34,54,32],
+     [432,45,6,43]](changed)
+    'gt_classes': 
+    [16,8] #the number corresponding to person and cat
+    'gt_overlaps':
+    (0, 15)  1
+    (1, 7)   1
+    #num_of_classes, 
+    'flipped':
+    True
+    seg_areas:
+    [432,53]
+    #areas of boxes
+    }
+    """
     for i in xrange(num_images):
         # filter out any ground truth boxes
         if cfg.TEST.HAS_RPN:
@@ -314,10 +366,13 @@ def test_net(sess, net, imdb, weights_filename , max_per_image=300, thresh=0.05,
         im = cv2.imread(imdb.image_path_at(i))
         _t['im_detect'].tic()
         scores, boxes = im_detect(sess, net, im, box_proposals)
+        # (1) cls_prob: (num of final left proposals(around 2000),21)(after softmax)
+        # (2) (num of final left proposals, 4) [x1,y1,x2,y3] (in the original images)
         _t['im_detect'].toc()
 
         _t['misc'].tic()
         if vis:
+            # false
             image = im[:, :, (2, 1, 0)]
             plt.cla()
             plt.imshow(image)
@@ -325,19 +380,24 @@ def test_net(sess, net, imdb, weights_filename , max_per_image=300, thresh=0.05,
         # skip j = 0, because it's the background class
         for j in xrange(1, imdb.num_classes):
             inds = np.where(scores[:, j] > thresh)[0]
+            # thresh： 0.05
             cls_scores = scores[inds, j]
             cls_boxes = boxes[inds, j*4:(j+1)*4]
             cls_dets = np.hstack((cls_boxes, cls_scores[:, np.newaxis])) \
                 .astype(np.float32, copy=False)
-            keep = nms(cls_dets, cfg.TEST.NMS)
-            cls_dets = cls_dets[keep, :]
-            if vis:
+            keep = nms(cls_dets, cfg.TEST.NMS) #0.3
+            cls_dets = cls_dets[keep, :] 
+            if vis: #false
                 vis_detections(image, imdb.classes[j], cls_dets)
             all_boxes[j][i] = cls_dets
+        #这时，all_boxes[j][i]对应着第i个图片（最然只有一个），第j个物体类别所剩下的box（num of kept proposals，5（坐标+score））
+        #选出kept boxes的方式：阈值直接对比挑选；nms
         if vis:
+           # false
            plt.show()
         # Limit to max_per_image detections *over all classes*
         if max_per_image > 0:
+            # 300
             image_scores = np.hstack([all_boxes[j][i][:, -1]
                                       for j in xrange(1, imdb.num_classes)])
             if len(image_scores) > max_per_image:
@@ -345,6 +405,7 @@ def test_net(sess, net, imdb, weights_filename , max_per_image=300, thresh=0.05,
                 for j in xrange(1, imdb.num_classes):
                     keep = np.where(all_boxes[j][i][:, -1] >= image_thresh)[0]
                     all_boxes[j][i] = all_boxes[j][i][keep, :]
+            # 保留300个all_boxes中的box，保留的方法是直接从大到小score排序然后删除。
         _t['misc'].toc()
 
         print 'im_detect: {:d}/{:d} {:.3f}s {:.3f}s' \
@@ -354,6 +415,9 @@ def test_net(sess, net, imdb, weights_filename , max_per_image=300, thresh=0.05,
     det_file = os.path.join(output_dir, 'detections.pkl')
     with open(det_file, 'wb') as f:
         cPickle.dump(all_boxes, f, cPickle.HIGHEST_PROTOCOL)
+    # 目前为止，从2000个框中选出小于等于300个框；方法是：上面的汉字内容
+    # 最终返回的是all_boxes: all_boxes[j][i]对应着第i个图片（最然只有一个），第j个物体类别所剩下的box（num of 
+    # final kept proposals，5（坐标+score））
 
     print 'Evaluating detections'
     imdb.evaluate_detections(all_boxes, output_dir)
