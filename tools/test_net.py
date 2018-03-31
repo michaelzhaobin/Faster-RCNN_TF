@@ -25,28 +25,28 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description='Test a Fast R-CNN network')
     parser.add_argument('--device', dest='device', help='device to use',
-                        default='cpu', type=str)
+                        default='cpu', type=str)  # gpu
     parser.add_argument('--device_id', dest='device_id', help='device id to use',
-                        default=0, type=int)
+                        default=0, type=int)  # 0
     parser.add_argument('--def', dest='prototxt',
                         help='prototxt file defining the network',
                         default=None, type=str)
     parser.add_argument('--weights', dest='model',
                         help='model to test',
-                        default=None, type=str)
+                        default=None, type=str) # experiments/logs/faster_rcnn_end2end_VGG16_${EXTRA_ARGS_SLUG}.txt.`date +'%Y-%m-%d_%H-%M-%S'
     parser.add_argument('--cfg', dest='cfg_file',
-                        help='optional config file', default=None, type=str)
+                        help='optional config file', default=None, type=str) #experiments/cfgs/faster_rcnn_end2end.yml
     parser.add_argument('--wait', dest='wait',
                         help='wait until net file exists',
                         default=True, type=bool)
     parser.add_argument('--imdb', dest='imdb_name',
                         help='dataset to test',
-                        default='voc_2007_test', type=str)
+                        default='voc_2007_test', type=str) # voc_2007_test
     parser.add_argument('--comp', dest='comp_mode', help='competition mode',
                         action='store_true')
     parser.add_argument('--network', dest='network_name',
                         help='name of the network',
-                        default=None, type=str)
+                        default=None, type=str)#VGGnet_test
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -72,11 +72,12 @@ if __name__ == '__main__':
         time.sleep(10)
 
     weights_filename = os.path.splitext(os.path.basename(args.model))[0]
-
+    #faster_rcnn_end2end_VGG16_${EXTRA_ARGS_SLUG}
+    
     imdb = get_imdb(args.imdb_name)
     #voc_2017_test
     imdb.competition_mode(args.comp_mode)
-    # false
+    # comp_mode: false
     # self.config['use_salt'] = True
     # self.config['cleanup'] = True
 
@@ -101,3 +102,4 @@ if __name__ == '__main__':
     print ('Loading model weights from {:s}').format(args.model)
 
     test_net(sess, network, imdb, weights_filename)
+    # faster_rcnn_end2end_VGG16_${EXTRA_ARGS_SLUG}
