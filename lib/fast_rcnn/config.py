@@ -249,15 +249,17 @@ def get_output_dir(imdb, weights_filename):
     (if not None).
     """
     outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'output', __C.EXP_DIR, imdb.name))
-    #./output/default/voc_2017_trainval
+    #./output/default/voc_2017_trainval      
+    # testing: ./output/default/voc_2017_test
     if weights_filename is not None:
         #indeed None
         outdir = osp.join(outdir, weights_filename)
+        #testing: ./output/default/voc_2017_trainval/faster_rcnn_end2end_VGG16_${EXTRA_ARGS_SLUG}
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     return outdir
     #./output/default/voc_2017_trainval
-
+    #testing: ./output/default/voc_2017_trainval/faster_rcnn_end2end_VGG16_${EXTRA_ARGS_SLUG}
 def _merge_a_into_b(a, b):
     """Merge config dictionary a into config dictionary b, clobbering the
     options in b whenever they are also specified in a.
