@@ -240,7 +240,7 @@ def im_detect(sess, net, im, boxes=None):
 
     return scores, pred_boxes
 # (1) cls_prob: (num of final left proposals(around 2000),21)(after softmax)
-# (2) (num of final left proposals, 4) [x1,y1,x2,y3] (in the original images)
+# (2) (num of final left proposals, 4*21) [x1,y1,x2,y3] (in the original images)
 
 
 def vis_detections(im, class_name, dets, thresh=0.8):
