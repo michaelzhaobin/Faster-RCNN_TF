@@ -128,7 +128,8 @@ class pascal_voc(imdb):
         Load the indexes listed in this dataset's image set file.
         """
         # Example path to image set file:
-        # self._devkit_path + /VOCdevkit2007/VOC2007/ImageSets/Main/val.txt
+        # self._devkit_path + /VOCdevkit2007/VOC2007/ImageSets/Main/trainval.txt
+        # self._devkit_path + /VOCdevkit2007/VOC2007/ImageSets/Main/test.txt
         image_set_file = os.path.join(self._data_path, 'ImageSets', 'Main',
                                       self._image_set + '.txt')
         assert os.path.exists(image_set_file), \
@@ -152,6 +153,7 @@ class pascal_voc(imdb):
         """
         cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb.pkl')
         # data/cache/voc_2017_trainval_gt_roidb.pkl
+        # testing: data/cache/voc_2017_test_gt_roidb.pkl
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
                 roidb = cPickle.load(fid)
@@ -245,6 +247,7 @@ class pascal_voc(imdb):
         tree = ET.parse(filename)
         objs = tree.findall('object')
         if not self.config['use_diff']:
+            # false
             # Exclude the samples labeled as difficult
             non_diff_objs = [
                 obj for obj in objs if int(obj.find('difficult').text) == 0]
