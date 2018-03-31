@@ -63,6 +63,9 @@ def demo(sess, net, image_name):
     timer = Timer()
     timer.tic()
     scores, boxes = im_detect(sess, net, im)
+    #选出2000个box，(1) cls_prob: (num of final left proposals(around 2000),21)(after softmax)
+    # (2) (num of final left proposals, 4*21) [x1,y1,x2,y3] (in the original images)
+    
     timer.toc()
     print ('Detection took {:.3f}s for '
            '{:d} object proposals').format(timer.total_time, boxes.shape[0])
@@ -83,6 +86,7 @@ def demo(sess, net, image_name):
         keep = nms(dets, NMS_THRESH)
         dets = dets[keep, :]
         vis_detections(im, cls, dets, ax, thresh=CONF_THRESH)
+    #这一步从2000个proposal中选出<=300个；选择方法：nms；用阈值对比挑选
 
 def parse_args():
     """Parse input arguments."""
