@@ -65,7 +65,7 @@ def add_bbox_regression_targets(roidb):
     'max_overlaps': [1,1]
 """
     """Add information needed to train bounding-box regressors."""
-    assert len(roidb) > 0
+    assert len(roidb) > 0 # 图像个数
     assert 'max_classes' in roidb[0], 'Did you call prepare_roidb first?'
 
     num_images = len(roidb)
