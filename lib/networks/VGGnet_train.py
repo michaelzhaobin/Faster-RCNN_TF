@@ -120,9 +120,9 @@ class VGGnet_train(Network):
              .proposal_layer(_feat_stride, anchor_scales, 'TRAIN',name = 'rpn_rois')))
         # choose pred_box by totally the predicted box coordinates and scores itself； 
         # im_info: [[max_length, max_width, im_scale]]
-        # 选择在原图内部的---->nms
+        # 选择在原图内部的----->通过预测的fg_score(即rpn_cls_prob_reshape的fg对应的部分)排序选择，nms之前之后都有---->nms
         """
-        return (num of left proposal(around 2000),*5)
+        return (num of left proposal(<= 2000),*5)
         blob[:,0]==0
         blob[:,1:5]: x1,y1,x2,y2(in the original image)
         """
