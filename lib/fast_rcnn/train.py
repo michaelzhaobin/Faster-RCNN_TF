@@ -176,7 +176,7 @@ class SolverWrapper(object):
     
         # R-CNN classification loss
         cls_score = self.net.get_output('cls_score')
-        # (num of final left proposals, 21)
+        # (num of final left proposals（128）, 21)
         label = tf.reshape(self.net.get_output('roi-data')[1],[-1])
         #the final classes of the ground truth correspounding to per pred box [num of finally left proposal,1] 
         #for ex: [[9],[15],[15],[15],[9],[9]....]
@@ -187,8 +187,9 @@ class SolverWrapper(object):
         
         # bounding box regression L1 loss
         bbox_pred = self.net.get_output('bbox_pred')
+        #（num of final left proposals(128), 21*4）
         bbox_targets = self.net.get_output('roi-data')[2]
-        # num of finally left proposals * 4*21: [dx,dy,dw,dh](relative to gt, 重要) of 1 class in 21
+        # num of finally left proposals(128) * 4*21: [dx,dy,dw,dh](gt_boxes相对于rois) of 1 class
         bbox_inside_weights = self.net.get_output('roi-data')[3]
         # num of finally left proposals * 4*21: [1, 1, 1, 1] of 1 class in 21 classes
         bbox_outside_weights = self.net.get_output('roi-data')[4]
