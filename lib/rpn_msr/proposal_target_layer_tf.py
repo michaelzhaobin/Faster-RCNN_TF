@@ -62,13 +62,14 @@ def proposal_target_layer(rpn_rois, gt_boxes,_num_classes):
     _num_classes: 21
     """
     """
-    (1)labels: the final classes of the ground truth correspounding to per pred box [num of finally left proposal,] 
+    (1)labels: the final classes of the ground truth correspounding to per pred box [num of finally left proposal（128）,] 
         for ex: [9,15,15,15,9,9....]
-    (2) rois: (num of finally left proposal, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
-          [0:fg_rois_per_this_image]: the left foregound; [fg_rois_per_this_image:]:the left background
-    (3): num of finally left proposals * 4*21: [dx,dy,dw,dh] of 1 class
+    (2) rois: (num of finally left proposal（根据每个roi和gtbox的overlaps大小来确定留下的fg和bg，多了的随机选择) blob[:,0]=0; 
+          blob[:-2,1:5] = x1,y1,x2,y2(pred box in original image); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
+          [0:fg_rois_per_this_image（大约42）]: the left foregound; [fg_rois_per_this_image（128-42）:]:the left background
+    (3): num of finally left proposals(128) * 4*21: [dx,dy,dw,dh](gt_boxes相对于rois) of 1 class
     (4): num of finally left proposals * 4*21: [1, 1, 1, 1] of 1 class
-    """
+"""
 
     if DEBUG:
         print 'num fg: {}'.format((labels > 0).sum())
@@ -92,12 +93,12 @@ def proposal_target_layer(rpn_rois, gt_boxes,_num_classes):
 
     return rois,labels,bbox_targets,bbox_inside_weights,bbox_outside_weights
 """
-(1) rois: (num of finally left proposal（128）, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
-          [0:fg_rois_per_this_image（32）]: the left foregound; [fg_rois_per_this_image（32）:]:the left background
-(2) the final classes of the ground truth correspounding to per pred box [num of finally left proposal,1] 
-        for ex: [[9],[15],[15],[15],[9],[9]....]
-
-(3): num of finally left proposals * 4*21: [dx,dy,dw,dh]（reative to gt） of 1 class in 21
+(1) rois: (num of finally left proposal（根据每个roi和gtbox的overlaps大小来确定留下的fg和bg，多了的随机选择) blob[:,0]=0; 
+          blob[:-2,1:5] = x1,y1,x2,y2(pred box in original image); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
+          [0:fg_rois_per_this_image（大约42）]: the left foregound; [fg_rois_per_this_image（128-42）:]:the left background
+(2) labels: the final classes of the ground truth correspounding to per pred box [num of finally left proposal（128）,] 
+        for ex: [9,15,15,15,9,9....]
+(3): num of finally left proposals(128) * 4*21: [dx,dy,dw,dh](gt_boxes相对于rois) of 1 class
 (4): num of finally left proposals * 4*21: [1, 1, 1, 1] of 1 class
 (5): num of finally left proposals * 4*21: [true,true,true,true] of 1 class in 21; [false, false, false, false] in left of the classes
 """
@@ -175,6 +176,7 @@ def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_clas
     all_rois: (num of left proposal, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
     gt_boxes: [[11,22,33,44,15],[22,33,44,55,9]]boxes +classes;
     fg_rois_per_image: 42
+    rois_per_image: 128
     _num_classes: 21
     """
     # overlaps: (rois x gt_boxes)
@@ -239,7 +241,7 @@ def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_clas
     #return (num of left boxes, 5)
     """
     [:,0]: the final classes of the ground truth correspounding to per pred box [num of finally left proposal,]
-    [:,1:5]: (num of left box * 4)[dx,dy,dw,dh]
+    [:,1:5]: (num of left box * 4)[dx,dy,dw,dh](gt_boxes 相对于rois的位移)
     """
 
     bbox_targets, bbox_inside_weights = \
@@ -247,7 +249,7 @@ def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_clas
     """
     (1): (num of left boxes, 5)
         [:,0]: the final classes of the ground truth correspounding to per pred box [num of finally left proposal,]
-        [:,1:5]: (num of left box * 4)[dx,dy,dw,dh]
+        [:,1:5]: (num of left box * 4)[dx,dy,dw,dh](gt_boxes 相对于rois的位移)
     (2) 21
     """
     """
@@ -258,10 +260,11 @@ def _sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_clas
 
     return labels, rois, bbox_targets, bbox_inside_weights
 """
-    (1)labels: the final classes of the ground truth correspounding to per pred box [num of finally left proposal,] 
+    (1)labels: the final classes of the ground truth correspounding to per pred box [num of finally left proposal（128）,] 
         for ex: [9,15,15,15,9,9....]
-    (2) rois: (num of finally left proposal, 5) blob[:,0]=0; blob[:-2,1:5] = x1,y1,x2,y2(pred box); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
-          [0:fg_rois_per_this_image]: the left foregound; [fg_rois_per_this_image:]:the left background
-    (3): num of finally left proposals * 4*21: [dx,dy,dw,dh] of 1 class
+    (2) rois: (num of finally left proposal（根据每个roi和gtbox的overlaps大小来确定留下的fg和bg，多了的随机选择) blob[:,0]=0; 
+          blob[:-2,1:5] = x1,y1,x2,y2(pred box in original image); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
+          [0:fg_rois_per_this_image（大约42）]: the left foregound; [fg_rois_per_this_image（128-42）:]:the left background
+    (3): num of finally left proposals(128) * 4*21: [dx,dy,dw,dh](gt_boxes相对于rois) of 1 class
     (4): num of finally left proposals * 4*21: [1, 1, 1, 1] of 1 class
 """
