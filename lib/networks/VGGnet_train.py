@@ -128,6 +128,7 @@ class VGGnet_train(Network):
         """
 
         #'gt_boxes': [[11,22,33,44,16],[22,33,44,55,8]]boxes +classes;
+        # 即输入的是预测的box坐标和gtbox坐标和类别
         (self.feed('rpn_rois','gt_boxes')
              .proposal_target_layer(n_classes,name = 'roi-data'))
         #choose pred_box by itself and the overlaps with the gt_boxes
