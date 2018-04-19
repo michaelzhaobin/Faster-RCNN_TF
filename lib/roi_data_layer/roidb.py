@@ -81,11 +81,17 @@ def add_bbox_regression_targets(roidb):
                 _compute_targets(rois, max_overlaps, max_classes)
 
     if cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
+        #true
         # Use fixed / precomputed "means" and "stds" instead of empirical values
         means = np.tile(
-                np.array(cfg.TRAIN.BBOX_NORMALIZE_MEANS), (num_classes, 1))
+                np.array(cfg.TRAIN.BBOX_NORMALIZE_MEANS), (num_classes, 1)) #[0.0, 0.0, 0.0, 0.0]
+      """
+      [[0., 0., 0., 0.],
+       [0., 0., 0., 0.],
+       [0., 0., 0., 0.]]) (num_classes, 4)
+      """
         stds = np.tile(
-                np.array(cfg.TRAIN.BBOX_NORMALIZE_STDS), (num_classes, 1))
+                np.array(cfg.TRAIN.BBOX_NORMALIZE_STDS), (num_classes, 1)) #[0.1, 0.1, 0.2, 0.2]
     else:
         # Compute values needed for means and stds
         # var(x) = E(x^2) - E(x)^2
@@ -114,6 +120,7 @@ def add_bbox_regression_targets(roidb):
 
     # Normalize targets
     if cfg.TRAIN.BBOX_NORMALIZE_TARGETS:
+        #True
         print "Normalizing targets"
         for im_i in xrange(num_images):
             targets = roidb[im_i]['bbox_targets']
@@ -148,11 +155,14 @@ def _compute_targets(rois, overlaps, labels):
         [1,1]]"""
     # Find which gt ROI each ex ROI has max overlap with:
     # this will be the ex ROI's gt target
-    gt_assignment = ex_gt_overlaps.argmax(axis=1)
-    gt_rois = rois[gt_inds[gt_assignment], :]
-    ex_rois = rois[ex_inds, :]
+    gt_assignment = ex_gt_overlaps.argmax(axis=1) # [0,0]
+    gt_rois = rois[gt_inds[gt_assignment], :] #[[23,34,54,32],[23,34,54,32]]
+    ex_rois = rois[ex_inds, :]  #[[23,34,54,32][432,45,6,43]]
 
     targets = np.zeros((rois.shape[0], 5), dtype=np.float32)
     targets[ex_inds, 0] = labels[ex_inds]
     targets[ex_inds, 1:] = bbox_transform(ex_rois, gt_rois)
     return targets
+"""[[15, dx, dy, dw, dh]
+    [7, dx, dy, dw, dh]]
+"""
