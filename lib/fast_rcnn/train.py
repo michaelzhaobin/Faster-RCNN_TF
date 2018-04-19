@@ -37,6 +37,15 @@ class SolverWrapper(object):
         print 'Computing bounding-box regression targets...'
         if cfg.TRAIN.BBOX_REG: # True
             self.bbox_means, self.bbox_stds = rdl_roidb.add_bbox_regression_targets(roidb)
+        """
+      [[0., 0., 0., 0.],
+       [0., 0., 0., 0.],
+       [0., 0., 0., 0.]]) (num_classes, 4)
+      [[0.1, 0.1, 0.2, 0.2]
+       [0.1, 0.1, 0.2, 0.2]
+       [0.1, 0.1, 0.2, 0.2]
+      ]
+        """
         print 'done'
 
         # For checkpoint
