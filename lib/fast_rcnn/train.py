@@ -126,7 +126,7 @@ class SolverWrapper(object):
         #RoIDataLayer(roidb, num_classes)
 
         # RPN
-        # classification loss
+        # classification loss （只用256个求loss，128 fg， 128 bg）
         rpn_cls_score = tf.reshape(self.net.get_output('rpn_cls_score_reshape'),[-1,2])
         # return dect(inputs)['rpn_cls_score_reshape']
         # rpn_cls_score_reshape: [1, 126(9*14),14,2]; output: [1764(9*14*14), 2]
@@ -160,7 +160,7 @@ class SolverWrapper(object):
 
        
     
-        # bounding box regression L1 loss
+        # bounding box regression L1 loss（只用128个fg box求loss）
         rpn_bbox_pred = self.net.get_output('rpn_bbox_pred')
         # rpn_bbox_pred:14*14*36 (9 anchors * 4) [1,14,14,36]
         rpn_bbox_targets = tf.transpose(self.net.get_output('rpn-data')[1],[0,2,3,1])
@@ -187,7 +187,7 @@ class SolverWrapper(object):
         cls_score = self.net.get_output('cls_score')
         # (num of final left proposals（128）, 21)
         label = tf.reshape(self.net.get_output('roi-data')[1],[-1])
-        #the final classes of the ground truth correspounding to per pred box [num of finally left proposal,1] 
+        #the final classes of the ground truth correspounding to per pred box [num of finally left proposal（128个）,1] 
         #for ex: [[9],[15],[15],[15],[9],[9]....]
         cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=cls_score, labels=label))
         # cls_score: (n)
