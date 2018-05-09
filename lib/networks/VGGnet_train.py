@@ -90,7 +90,6 @@ class VGGnet_train(Network):
                    256 of inside of them is the after-choose where the value 1 represent fg_anchors and the value
                    0 represent bg_anchors; the rest of them is -1,which will be not considered
              how to choose: anchor交叠大于0.7某个阈值为1，交叠小于0.5为0，多了的随机选256个
-             如果将2000个不选择一起放进去，会导致fg和bg样本不平衡，效果不好。
         rpn_bbox_targets: 1, 9*4, 14, 14 elem: x move of center, y move of center, width transform , height transform(anchors relative to gt)
                   (only the inside boxes,but almost the same size as all anchors), the rest of boxes are [0 0 0 0]
         rpn_bbox_inside_weights: 1, 9*4, 14, 14 elem: the inside anchors are:[1,1,1,1] for left fg_anchors(labels == 1， around 128 个)
@@ -137,6 +136,7 @@ class VGGnet_train(Network):
 (1) rois: (num of finally left proposal（根据每个roi（2000个）和gtbox的overlaps大小来确定留下的fg和bg，多了的随机选择) blob[:,0]=0; 
           blob[:-2,1:5] = x1,y1,x2,y2(pred box in original image); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
           [0:fg_rois_per_this_image（大约42）]: the left foregound; [fg_rois_per_this_image（128-42）:]:the left background
+          如果将2000个不选择一起放进去，会导致fg和bg样本不平衡，效果不好。
 (2) labels: the final classes of the ground truth correspounding to per pred box [num of finally left proposal（128）,] 
         for ex: [9,15,15,15,9,9....]
 (3): num of finally left proposals(128) * 4*21: [dx,dy,dw,dh](gt_boxes相对于rois) of 1 class
