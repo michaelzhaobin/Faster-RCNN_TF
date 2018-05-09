@@ -133,7 +133,7 @@ class VGGnet_train(Network):
              .proposal_target_layer(n_classes,name = 'roi-data'))
         #choose pred_box by itself and the overlaps with the gt_boxes
 """
-(1) rois: (num of finally left proposal（根据每个roi和gtbox的overlaps大小来确定留下的fg和bg，多了的随机选择) blob[:,0]=0; 
+(1) rois: (num of finally left proposal（根据每个roi（2000个）和gtbox的overlaps大小来确定留下的fg和bg，多了的随机选择) blob[:,0]=0; 
           blob[:-2,1:5] = x1,y1,x2,y2(pred box in original image); blob[-2:,1:5] = x1,y1,x2,y2(gt_box)
           [0:fg_rois_per_this_image（大约42）]: the left foregound; [fg_rois_per_this_image（128-42）:]:the left background
 (2) labels: the final classes of the ground truth correspounding to per pred box [num of finally left proposal（128）,] 
